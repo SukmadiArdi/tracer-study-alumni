@@ -141,7 +141,9 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; }
          <button id="nav-alumni" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="alumni"> <i data-lucide="users" style="width:18px;height:18px;"></i> Alumni Management </button> 
          <button id="nav-verification" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="verification"> <i data-lucide="check-circle" style="width:18px;height:18px;"></i> Manual Verification <span id="verif-badge" class="ml-auto bg-amber-400 text-navy-900 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">0</span> </button>
       <div class="pt-4 pb-2 px-3"><span class="text-white/30 text-[10px] uppercase tracking-wider font-semibold">System</span>
-      </div><button class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> <i data-lucide="settings" style="width:18px;height:18px;"></i> Settings </button> <button class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> <i data-lucide="help-circle" style="width:18px;height:18px;"></i> Help &amp; Docs </button>
+      </div>
+      <button id="nav-settings" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="settings"> <i data-lucide="settings" style="width:18px;height:18px;"></i> Settings </button> 
+      <button class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> <i data-lucide="help-circle" style="width:18px;height:18px;"></i> Help &amp; Docs </button>
      </nav>
      <div class="p-4 border-t border-white/10 flex items-center gap-3">
       <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-xs font-semibold">AD</div>
@@ -305,6 +307,52 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; }
        </div><span class="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full" id="verif-page-badge">0 Pending Reviews</span>
       </div>
       <div id="verification-list" class="space-y-4"></div>
+     </section>
+
+     <section id="page-settings" class="p-6 space-y-6 hidden">
+      <div class="bg-white rounded-2xl p-6 border border-navy-100 anim-fade-up">
+       <h3 class="font-semibold text-navy-700 text-base mb-4 flex items-center gap-2"><i data-lucide="sliders" style="width:18px;height:18px;"></i> Algorithm Parameters</h3>
+       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+         <label class="block text-xs font-medium text-navy-500 mb-1">High Confidence Score (&ge;)</label>
+         <input type="number" id="set-high" value="80" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40">
+         <p class="text-[10px] text-navy-400 mt-1">Scores above this will be automatically marked as 'Identified'.</p>
+        </div>
+        <div>
+         <label class="block text-xs font-medium text-navy-500 mb-1">Medium Confidence Score (&ge;)</label>
+         <input type="number" id="set-med" value="50" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40">
+         <p class="text-[10px] text-navy-400 mt-1">Scores above this will be marked as 'Pending' (needs review).</p>
+        </div>
+       </div>
+       
+       <hr class="my-6 border-navy-100">
+       
+       <h3 class="font-semibold text-navy-700 text-base mb-4 flex items-center gap-2"><i data-lucide="database" style="width:18px;height:18px;"></i> Active Data Sources</h3>
+       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
+         <input type="checkbox" checked class="custom-check rounded" id="src-linkedin">
+         <span class="text-sm text-navy-600 font-medium">LinkedIn</span>
+        </label>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
+         <input type="checkbox" checked class="custom-check rounded" id="src-github">
+         <span class="text-sm text-navy-600 font-medium">GitHub</span>
+        </label>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
+         <input type="checkbox" checked class="custom-check rounded" id="src-scholar">
+         <span class="text-sm text-navy-600 font-medium">Google Scholar</span>
+        </label>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
+         <input type="checkbox" checked class="custom-check rounded" id="src-pddikti">
+         <span class="text-sm text-navy-600 font-medium">PDDikti</span>
+        </label>
+       </div>
+       
+       <div class="flex justify-end">
+        <button id="btn-save-settings" class="flex items-center gap-2 px-6 py-2.5 bg-navy-600 hover:bg-navy-700 text-white rounded-xl text-sm font-medium transition">
+         <i data-lucide="save" style="width:16px;height:16px;"></i> Save Preferences
+        </button>
+       </div>
+      </div>
      </section>
     </main>
    </div>

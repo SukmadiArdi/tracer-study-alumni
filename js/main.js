@@ -33,7 +33,6 @@ document.getElementById("filter-program").addEventListener("change", renderAlumn
 document.getElementById("filter-year").addEventListener("change", renderAlumniTable);
 document.getElementById("filter-status").addEventListener("change", renderAlumniTable);
 
-// Event Listener untuk Search Input
 const searchInput = document.getElementById("search-alumni");
 if(searchInput) {
     searchInput.addEventListener("input", renderAlumniTable);
@@ -346,7 +345,8 @@ if (window.elementSdk) {
 
 // ===== 7. EVENT LISTENERS UI PADA INIT =====
 document.addEventListener("DOMContentLoaded", () => {
-    const pages = ["dashboard", "alumni", "verification"];
+    // Navigasi (Termasuk Settings)
+    const pages = ["dashboard", "alumni", "verification", "settings"];
     pages.forEach(page => {
         const btn = document.getElementById(`nav-${page}`);
         if (btn) {
@@ -357,7 +357,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.querySelectorAll(".sidebar-link").forEach(el => el.classList.remove("active"));
                 btn.classList.add("active");
                 
-                const titles = { dashboard: ['Dashboard','Overview of alumni tracking progress'], alumni: ['Alumni Management','Browse, search, and manage alumni records'], verification: ['Manual Verification','Review and confirm unverified alumni profiles'] };
+                const titles = { 
+                    dashboard: ['Dashboard','Overview of alumni tracking progress'], 
+                    alumni: ['Alumni Management','Browse, search, and manage alumni records'], 
+                    verification: ['Manual Verification','Review and confirm unverified alumni profiles'],
+                    settings: ['System Settings','Configure tracking parameters and data sources']
+                };
                 document.getElementById("page-title").textContent = titles[page][0];
                 document.getElementById("page-subtitle").textContent = titles[page][1];
             });
@@ -415,6 +420,15 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("Alumni berhasil ditambahkan!", "check");
         loadData();
     });
+
+    // Simpan Settings
+    const btnSaveSettings = document.getElementById("btn-save-settings");
+    if(btnSaveSettings) {
+        btnSaveSettings.addEventListener("click", () => {
+            showToast("System settings saved successfully", "check-circle");
+            addActivity("Konfigurasi algoritma sistem diperbarui", "sliders", "text-blue-600", "bg-blue-50");
+        });
+    }
 
     if (window.lucide) lucide.createIcons();
 });
