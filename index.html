@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en" class="h-full">
+
 <head>
 
 <meta charset="UTF-8">
@@ -7,22 +8,20 @@
 
 <title>Alumni Tracer Study System</title>
 
-<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
 <script>
 tailwind.config = {
-theme: {
-extend: {
-colors: {
-navy: { 
+theme:{
+extend:{
+colors:{
+navy:{
 50:'#f0f4fa',
 100:'#dce4f2',
 200:'#bccbe7',
@@ -34,8 +33,7 @@ navy: {
 800:'#0f2041',
 900:'#0a1628'
 },
-slate_surface: '#f7f9fc',
-card_white: '#ffffff'
+slate_surface:'#f7f9fc'
 }
 }
 }
@@ -43,189 +41,115 @@ card_white: '#ffffff'
 </script>
 
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; font-family: 'DM Sans', sans-serif; }
-.font-display { font-family: 'Playfair Display', serif; }
 
-@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-@keyframes scaleIn { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
-@keyframes slideRight { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
-@keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+*{box-sizing:border-box;margin:0;padding:0}
 
-.anim-fade-up { animation: fadeUp .5s ease both; }
-.anim-scale-in { animation: scaleIn .4s ease both; }
-.anim-slide-right { animation: slideRight .4s ease both; }
-
-.anim-delay-1 { animation-delay: .08s; }
-.anim-delay-2 { animation-delay: .16s; }
-.anim-delay-3 { animation-delay: .24s; }
-.anim-delay-4 { animation-delay: .32s; }
-.anim-delay-5 { animation-delay: .4s; }
-
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: #bccbe7; border-radius: 3px; }
-
-.progress-ring-circle {
-transition: stroke-dashoffset 0.6s ease;
-transform: rotate(-90deg);
-transform-origin: 50% 50%;
+body{
+font-family:'DM Sans',sans-serif;
+background:#f7f9fc;
 }
 
-.table-row-hover { transition: background .15s ease; }
-.table-row-hover:hover { background: #f0f4fa; }
-
-.sidebar-link { transition: all .15s ease; }
-.sidebar-link:hover { background: rgba(255,255,255,.12); }
-.sidebar-link.active { background: rgba(255,255,255,.18); border-left: 3px solid #fff; }
-
-.badge-pulse { animation: pulse-dot 2s ease infinite; }
-
-.modal-overlay {
-background: rgba(10,22,40,.45);
-backdrop-filter: blur(4px);
+.sidebar-link{
+transition:.15s;
 }
 
-.custom-check { accent-color: #1e3a6e; }
+.sidebar-link.active{
+background:rgba(255,255,255,.15);
+}
+
+.table-row-hover:hover{
+background:#f0f4fa;
+}
 
 </style>
 
 </head>
 
-<body class="h-full bg-slate_surface text-navy-800 overflow-auto">
+<body class="h-full text-navy-800">
 
-<!-- ===== LOGIN PAGE ===== -->
+<!-- LOGIN PAGE -->
 
-<div id="page-login" class="h-full w-full flex">
+<div id="page-login" class="h-full flex">
 
-<!-- Left panel -->
-<div class="hidden lg:flex w-1/2 bg-gradient-to-br from-navy-600 via-navy-700 to-navy-900 relative overflow-hidden flex-col justify-center items-center p-12">
+<div class="w-1/2 bg-gradient-to-br from-navy-600 to-navy-900 flex flex-col items-center justify-center text-white">
 
-<div class="absolute top-0 left-0 w-full h-full opacity-10">
-
-<div class="absolute top-10 left-10 w-64 h-64 rounded-full border-2 border-white"></div>
-<div class="absolute bottom-20 right-10 w-48 h-48 rounded-full border border-white"></div>
-<div class="absolute top-1/3 right-1/4 w-32 h-32 rounded-full bg-white/10"></div>
-<div class="absolute bottom-1/3 left-1/4 w-20 h-20 rounded-full bg-white/5"></div>
-
-</div>
-
-<div class="relative z-10 anim-scale-in">
-
-<svg width="280" height="240" viewBox="0 0 280 240" fill="none">
-
-<circle cx="140" cy="120" r="36" fill="rgba(255,255,255,.15)" stroke="white" stroke-width="2" />
-
-<text x="140" y="110" text-anchor="middle" fill="white" font-size="11" font-family="DM Sans" font-weight="600">
-ALUMNI
-</text>
-
-<text x="140" y="126" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="9" font-family="DM Sans">
-NETWORK
-</text>
-
-</svg>
-
-</div>
-
-<div class="relative z-10 mt-10 text-center anim-fade-up anim-delay-2">
-
-<h2 class="text-white font-display text-2xl mb-2">
+<h2 class="text-3xl font-display mb-4">
 Alumni Tracer Study
 </h2>
 
-<p class="text-white/60 text-sm max-w-xs">
-Connecting graduates with their alma mater.
+<p class="text-white/70 text-sm">
+Connecting graduates with their alma mater
 </p>
 
 </div>
 
-</div>
+<div class="w-1/2 flex items-center justify-center">
 
-<!-- Login form -->
+<div class="w-96">
 
-<div class="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16">
-
-<div class="w-full max-w-md anim-fade-up">
-
-<h1 class="font-display text-3xl text-navy-800 mb-1">
+<h1 class="text-3xl font-display mb-2">
 Welcome back
 </h1>
 
-<p class="text-navy-400 mb-8 text-sm">
-Sign in to access the Alumni Tracer dashboard
+<p class="text-sm text-navy-400 mb-6">
+Sign in to access the dashboard
 </p>
 
-<form onsubmit="return false;" class="space-y-5">
-
 <input id="login-user"
-type="text"
-placeholder="admin@university.ac.id"
-class="w-full px-4 py-3 rounded-xl border border-navy-200">
+class="w-full mb-3 p-3 border rounded-lg"
+placeholder="admin">
 
 <input id="login-pass"
 type="password"
-placeholder="••••••••"
-class="w-full px-4 py-3 rounded-xl border border-navy-200">
+class="w-full mb-4 p-3 border rounded-lg"
+placeholder="password">
 
 <button id="btn-login"
-class="w-full py-3 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-semibold text-sm">
+class="w-full bg-navy-600 text-white py-3 rounded-xl">
 
 Sign In
 
 </button>
 
-</form>
-
 </div>
 
 </div>
 
 </div>
 
-<!-- ===== DASHBOARD SHELL ===== -->
+<!-- APP -->
 
-<div id="app-shell" class="h-full w-full hidden">
+<div id="app-shell" class="hidden h-full">
 
-<div class="flex h-full w-full">
+<div class="flex h-full">
 
 <!-- SIDEBAR -->
 
-<aside id="sidebar"
-class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 flex flex-col shrink-0">
+<aside class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 text-white flex flex-col">
 
-<div class="p-5 flex items-center gap-3 border-b border-white/10">
-
-<div class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-white">
-TS
-</div>
-
-<div>
-<span class="text-white font-semibold text-sm block">
+<div class="p-5 font-semibold">
 Tracer Study
-</span>
 </div>
 
-</div>
+<nav class="flex-1 px-3">
 
-<nav class="flex-1 py-4 px-3 space-y-1">
-
-<button onclick="showPage('dashboard')" class="sidebar-link active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="dashboard">
-<i data-lucide="layout-dashboard"></i> Dashboard
+<button onclick="showPage('dashboard')" class="sidebar-link active w-full text-left px-3 py-2 rounded">
+Dashboard
 </button>
 
-<button onclick="showPage('alumni')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="alumni">
-<i data-lucide="users"></i> Alumni Management
+<button onclick="showPage('alumni')" class="sidebar-link w-full text-left px-3 py-2 rounded">
+Alumni Management
 </button>
 
-<button onclick="showPage('verification')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="verification">
-<i data-lucide="check-circle"></i> Manual Verification
+<button onclick="showPage('verification')" class="sidebar-link w-full text-left px-3 py-2 rounded">
+Manual Verification
 </button>
 
 </nav>
 
 <div class="p-4 border-t border-white/10">
 
-<button onclick="logout()" class="text-white/60 text-sm">
+<button onclick="logout()">
 Logout
 </button>
 
@@ -235,32 +159,59 @@ Logout
 
 <!-- MAIN -->
 
-<main class="flex-1 overflow-y-auto">
+<main class="flex-1 overflow-auto">
 
-<header class="bg-white border-b px-6 py-3">
+<header class="bg-white border-b p-4">
 
-<h2 class="font-semibold text-navy-800 text-lg" id="page-title">
+<h2 id="page-title" class="font-semibold">
 Dashboard
 </h2>
 
 </header>
 
+<!-- DASHBOARD -->
+
 <section id="page-dashboard" class="p-6">
 
-<p class="text-navy-400 text-sm">
+<p class="text-sm text-navy-400">
 Overview of alumni tracking progress
 </p>
 
 </section>
 
-<section id="page-alumni" class="p-6 hidden">
+<!-- ALUMNI -->
+
+<section id="page-alumni" class="hidden p-6">
+
 <table class="w-full text-sm">
+
+<thead>
+
+<tr class="text-navy-500 text-xs uppercase">
+
+<th class="px-4 py-2">Name</th>
+<th class="px-4 py-2">NIM</th>
+<th class="px-4 py-2">Program</th>
+<th class="px-4 py-2">Year</th>
+<th class="px-4 py-2">Status</th>
+<th class="px-4 py-2">Confidence</th>
+
+</tr>
+
+</thead>
+
 <tbody id="alumni-table-body"></tbody>
+
 </table>
+
 </section>
 
-<section id="page-verification" class="p-6 hidden">
+<!-- VERIFICATION -->
+
+<section id="page-verification" class="hidden p-6">
+
 <div id="verification-list"></div>
+
 </section>
 
 </main>
@@ -271,377 +222,127 @@ Overview of alumni tracking progress
 
 <script>
 
+let alumniData=[];
+let verificationData=[];
+
 function showPage(page){
 
-document.querySelectorAll('[id^="page-"]:not(#page-login)')
-.forEach(el=>el.classList.add('hidden'));
+document.querySelectorAll("[id^='page-']").forEach(p=>{
 
-document.getElementById('page-'+page).classList.remove('hidden');
+if(p.id!=="page-login")p.classList.add("hidden")
+
+})
+
+document.getElementById("page-"+page).classList.remove("hidden")
 
 }
 
 document.getElementById("btn-login").onclick=function(){
 
-document.getElementById("page-login").classList.add("hidden");
-document.getElementById("app-shell").classList.remove("hidden");
+document.getElementById("page-login").classList.add("hidden")
+document.getElementById("app-shell").classList.remove("hidden")
 
-showPage("dashboard");
-
-lucide.createIcons();
+showPage("dashboard")
 
 }
 
 function logout(){
 
-document.getElementById("app-shell").classList.add("hidden");
-document.getElementById("page-login").classList.remove("hidden");
+document.getElementById("app-shell").classList.add("hidden")
+document.getElementById("page-login").classList.remove("hidden")
 
 }
-
-lucide.createIcons();
 
 </script>
 
+<!-- FIREBASE INTEGRATION -->
+
 <script type="module">
 
-import { getAlumni, addAlumni, deleteAlumni, updateStatus } from "./js/database.js";
-import { runTracking } from "./js/tracking.js";
-import { updateDashboard } from "./js/dashboard.js";
+import { getAlumni } from "./js/database.js"
 
-let alumniData = [];
+async function loadFirebaseData(){
 
+const data=await getAlumni()
 
-/* ===============================
-LOAD DATA
-=============================== */
+alumniData.length=0
+verificationData.length=0
 
-async function loadAlumni(){
+data.forEach(a=>{
 
-  alumniData = await getAlumni();
+alumniData.push(a)
 
-  renderAlumniTable();
+if(a.status==="Pending"){
 
-  renderVerification();
-
-  updateDashboard(alumniData);
+verificationData.push(a)
 
 }
 
-loadAlumni();
+})
 
+renderAlumniTable()
+renderVerification()
 
+}
 
-/* ===============================
-RENDER ALUMNI TABLE
-=============================== */
+window.renderAlumniTable=function(){
 
-window.renderAlumniTable = function(){
+const tbody=document.getElementById("alumni-table-body")
 
-  const tbody = document.getElementById("alumni-table-body");
+tbody.innerHTML=""
 
-  if(!tbody) return;
+alumniData.forEach(a=>{
 
-  tbody.innerHTML = "";
+const tr=document.createElement("tr")
 
-  alumniData.forEach((a,i)=>{
+tr.className="table-row-hover"
 
-    const initials = a.name
-      .split(" ")
-      .map(n=>n[0])
-      .join("")
-      .substring(0,2);
+tr.innerHTML=`
 
-    const statusColors = {
-      "Identified":"bg-emerald-50 text-emerald-700",
-      "Pending":"bg-amber-50 text-amber-700",
-      "Not Found":"bg-red-50 text-red-600"
-    };
+<td class="px-4 py-2">${a.name}</td>
+<td class="px-4 py-2">${a.nim}</td>
+<td class="px-4 py-2">${a.program}</td>
+<td class="px-4 py-2">${a.year}</td>
+<td class="px-4 py-2">${a.status}</td>
+<td class="px-4 py-2">${a.confidence}%</td>
 
-    const confColor =
-      a.confidence >= 80
-      ? "bg-emerald-500"
-      : a.confidence >= 50
-      ? "bg-amber-500"
-      : "bg-red-400";
+`
 
-    const tr = document.createElement("tr");
+tbody.appendChild(tr)
 
-    tr.className = "table-row-hover";
+})
 
-    tr.innerHTML = `
+}
 
-<td class="px-5 py-3.5">
+window.renderVerification=function(){
 
-<div class="flex items-center gap-3">
+const container=document.getElementById("verification-list")
 
-<div class="w-8 h-8 rounded-full bg-navy-100 flex items-center justify-center text-navy-600 text-xs font-semibold shrink-0">
+container.innerHTML=""
 
-${initials}
+verificationData.forEach(a=>{
 
-</div>
+container.innerHTML+=`
 
-<span class="font-medium text-navy-700">
+<div class="bg-white p-4 border rounded-xl mb-3">
 
-${a.name}
-
-</span>
-
-</div>
-
-</td>
-
-<td class="px-5 py-3.5 text-navy-500 font-mono text-xs">
-
-${a.nim}
-
-</td>
-
-<td class="px-5 py-3.5 text-navy-500">
-
-${a.program}
-
-</td>
-
-<td class="px-5 py-3.5 text-navy-500">
-
-${a.year}
-
-</td>
-
-<td class="px-5 py-3.5">
-
-<span class="text-xs font-medium px-2.5 py-1 rounded-full ${statusColors[a.status]}">
-
-${a.status}
-
-</span>
-
-</td>
-
-<td class="px-5 py-3.5">
-
-<div class="flex items-center gap-2">
-
-<div class="w-16 h-1.5 bg-navy-100 rounded-full overflow-hidden">
-
-<div class="h-full ${confColor}" style="width:${a.confidence}%"></div>
-
-</div>
-
-<span class="text-xs font-semibold text-navy-600">
-
-${a.confidence}%
-
-</span>
-
-</div>
-
-</td>
-
-<td class="px-5 py-3.5 text-right">
-
-<div class="flex items-center justify-end gap-1">
-
-<button onclick="trackAlumni(${i})"
-class="p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-600">
-
-<i data-lucide="radar" style="width:15px;height:15px;"></i>
-
-</button>
-
-<button onclick="removeAlumni(${i})"
-class="p-1.5 rounded-lg hover:bg-red-50 text-navy-400 hover:text-red-500">
-
-<i data-lucide="trash-2" style="width:15px;height:15px;"></i>
-
-</button>
-
-</div>
-
-</td>
-`;
-
-    tbody.appendChild(tr);
-
-  });
-
-  lucide.createIcons();
-
-};
-
-
-
-/* ===============================
-ADD ALUMNI
-=============================== */
-
-window.saveAlumni = async function(){
-
-  const name = document.getElementById("add-name").value;
-
-  const nim = document.getElementById("add-nim").value;
-
-  const program = document.getElementById("add-program").value;
-
-  const year = document.getElementById("add-year").value;
-
-  await addAlumni({
-    name,
-    nim,
-    program,
-    year,
-    status:"Pending",
-    confidence:0
-  });
-
-  await loadAlumni();
-
-};
-
-
-
-/* ===============================
-DELETE ALUMNI
-=============================== */
-
-window.removeAlumni = async function(index){
-
-  const id = alumniData[index].id;
-
-  await deleteAlumni(id);
-
-  await loadAlumni();
-
-};
-
-
-
-/* ===============================
-RUN TRACKING
-=============================== */
-
-window.trackAlumni = async function(index){
-
-  const alumni = alumniData[index];
-
-  const result = runTracking(alumni);
-
-  await updateStatus(
-    alumni.id,
-    result.status,
-    result.confidence
-  );
-
-  await loadAlumni();
-
-};
-
-
-
-/* ===============================
-MANUAL VERIFICATION
-=============================== */
-
-function renderVerification(){
-
-  const container = document.getElementById("verification-list");
-
-  if(!container) return;
-
-  container.innerHTML = "";
-
-  alumniData
-  .filter(a => a.status === "Pending")
-  .forEach(a=>{
-
-    const initials = a.name
-      .split(" ")
-      .map(n=>n[0])
-      .join("")
-      .substring(0,2);
-
-    container.innerHTML += `
-
-<div class="bg-white rounded-2xl border border-navy-100 p-5">
-
-<div class="flex items-center justify-between">
-
-<div class="flex items-center gap-3">
-
-<div class="w-11 h-11 rounded-xl bg-navy-100 flex items-center justify-center text-navy-600 text-sm font-bold">
-
-${initials}
-
-</div>
-
-<div>
-
-<div class="font-semibold text-navy-700">
-
-${a.name}
-
-</div>
+<b>${a.name}</b>
 
 <div class="text-xs text-navy-400">
 
-${a.nim} · ${a.program} · Class of ${a.year}
+${a.program} • ${a.year}
 
 </div>
 
 </div>
 
-</div>
+`
 
-<div class="flex gap-2">
-
-<button onclick="confirmVerification('${a.id}')"
-class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs rounded-xl">
-
-Confirm
-
-</button>
-
-<button onclick="rejectVerification('${a.id}')"
-class="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-xs rounded-xl">
-
-Reject
-
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-`;
-
-  });
+})
 
 }
 
-
-
-/* ===============================
-VERIFY ACTION
-=============================== */
-
-window.confirmVerification = async function(id){
-
-  await updateStatus(id,"Identified",90);
-
-  await loadAlumni();
-
-};
-
-window.rejectVerification = async function(id){
-
-  await updateStatus(id,"Not Found",0);
-
-  await loadAlumni();
-
-};
-
+loadFirebaseData()
 
 </script>
 
