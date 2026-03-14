@@ -1,33 +1,38 @@
-# Tracer Study Alumni System
+# Alumni Tracer Study System
 
-Sistem ini digunakan untuk melacak status alumni menggunakan metode tracer study dan simulasi data mining.
+Web-based system to track alumni career outcomes.
 
-## Teknologi
+## Features
 
-- HTML
-- CSS
-- JavaScript
-- Firebase Firestore
-
-## Fitur
-
-- Login Admin
-- Dashboard Statistik
-- Tambah Alumni
-- Tracking Alumni
-- Hapus Alumni
+- Admin Login
+- Dashboard Statistics
+- Alumni Management
+- Manual Verification
+- Tracking Algorithm
 - Cloud Database
 
-## Pengujian Sistem
+## Technology
 
-| No | Fitur | Pengujian | Hasil |
-|----|------|-----------|------|
-|1|Login|Admin login dengan akun valid|Berhasil|
-|2|Tambah Alumni|Admin menambahkan data alumni|Berhasil|
-|3|Tracking Alumni|Sistem menghitung confidence score|Berhasil|
-|4|Delete Alumni|Admin menghapus data alumni|Berhasil|
-|5|Dashboard|Statistik tampil|Berhasil|
+HTML  
+Tailwind CSS  
+JavaScript  
+Firebase Firestore  
 
-## Deploy
+## Live Website
 
-Website dapat diakses melalui GitHub Pages.
+https://username.github.io/tracer-study-alumni/
+
+## GitHub Repository
+
+https://github.com/username/tracer-study-alumni
+
+
+## Testing
+
+| No | Feature | Test Case | Result |
+|----|--------|-----------|-------|
+|1|Login|Admin login|Success|
+|2|Add Alumni|Add alumni data|Success|
+|3|Tracking|Calculate confidence score|Success|
+|4|Delete Alumni|Remove alumni|Success|
+|5|Verification|Confirm match|Success|

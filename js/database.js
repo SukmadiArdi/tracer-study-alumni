@@ -13,10 +13,11 @@ updateDoc
 
 "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+
 const alumniCollection = collection(db,"alumni");
 
 
-export async function loadAlumni(){
+export async function getAlumni(){
 
 const snapshot = await getDocs(alumniCollection);
 
@@ -27,7 +28,6 @@ snapshot.forEach((doc)=>{
 data.push({
 
 id:doc.id,
-
 ...doc.data()
 
 });
