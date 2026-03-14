@@ -3,7 +3,15 @@ import { runTracking } from "./tracking.js";
 import { updateDashboard } from "./dashboard.js";
 
 let currentAlumniData = [];
-let pendingTrackId = null; // Menyimpan ID alumni yang sedang mau di-track lewat modal
+
+// Data dummy untuk membuat halaman verifikasi terlihat persis seperti desain Canva
+const mockJobs = [
+    { title: "Software Developer at Gojek", loc: "Surabaya, Indonesia" },
+    { title: "Marketing Analyst at Tokopedia", loc: "Jakarta, Indonesia" },
+    { title: "Data Scientist at Bukalapak", loc: "Bandung, Indonesia" },
+    { title: "Hardware Engineer at Samsung", loc: "Seoul, South Korea" },
+    { title: "Consultant at Deloitte", loc: "Singapore" }
+];
 
 // ===== 1. INISIALISASI & LOAD DATA =====
 async function loadData() {
@@ -14,8 +22,8 @@ async function loadData() {
     if (window.lucide) lucide.createIcons();
 }
 
-// ===== 2. RENDER TABEL ALUMNI =====
-function renderAlumniTable() {
+// ===== 2. RENDER TABEL ALUMNI (DENGAN FITUR EDIT & INLINE DELETE) =====
+window.renderAlumniTable = function() {
     const tbody = document.getElementById("alumni-table-body");
     if (!tbody) return;
     tbody.innerHTML = "";
@@ -51,40 +59,60 @@ function renderAlumniTable() {
                     <span class="text-xs font-semibold ${confColor}">${a.confidence}%</span>
                 </div>
             </td>
-            <td class="px-5 py-3.5 text-right">
+            <td class="px-5 py-3.5 text-right action-cell">
                 <div class="flex items-center justify-end gap-1">
-                    <button onclick="window.openTrackModal('${a.id}')" class="p-1.5 rounded-lg hover:bg-blue-50 text-navy-400 hover:text-blue-600 transition" title="Track"><i data-lucide="radar" style="width:15px;height:15px;"></i></button>
-                    <button onclick="window.handleDelete('${a.id}')" class="p-1.5 rounded-lg hover:bg-red-50 text-navy-400 hover:text-red-500 transition" title="Delete"><i data-lucide="trash-2" style="width:15px;height:15px;"></i></button>
+                    <button class="p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-600 transition" title="Edit"><i data-lucide="edit-2" style="width:15px;height:15px;"></i></button>
+                    <button onclick="window.askDeleteUI('${a.id}', this)" class="p-1.5 rounded-lg hover:bg-red-50 text-navy-400 hover:text-red-500 transition" title="Delete"><i data-lucide="trash-2" style="width:15px;height:15px;"></i></button>
                 </div>
             </td>
         `;
         tbody.appendChild(tr);
     });
+    if (window.lucide) lucide.createIcons();
 }
 
-// ===== 3. RENDER DAFTAR VERIFIKASI MANUAL =====
+// Fitur Hapus Inline ala Canva
+window.askDeleteUI = function(id, btnElement) {
+    const actionCell = btnElement.closest('.action-cell');
+    actionCell.innerHTML = `
+        <div class="flex items-center justify-end gap-1">
+            <span class="text-xs text-red-600 mr-1">Delete?</span>
+            <button onclick="window.confirmDelete('${id}')" class="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition text-xs font-medium px-2">Yes</button>
+            <button onclick="window.renderAlumniTable()" class="p-1.5 rounded-lg bg-navy-50 text-navy-600 hover:bg-navy-100 transition text-xs font-medium px-2">No</button>
+        </div>
+    `;
+}
+
+window.confirmDelete = async function(id) {
+    await deleteAlumni(id);
+    showToast('Alumni record deleted', 'trash-2');
+    loadData();
+}
+
+// ===== 3. RENDER DAFTAR VERIFIKASI MANUAL (DENGAN DATA MATCHING UI) =====
 function renderVerification() {
     const container = document.getElementById("verification-list");
-    const verifPageBadge = document.getElementById("verif-page-badge");
     if (!container) return;
     container.innerHTML = "";
 
     const pendingAlumni = currentAlumniData.filter(a => a.status === "Pending");
-    if(verifPageBadge) verifPageBadge.textContent = `${pendingAlumni.length} Pending Reviews`;
 
-    if (pendingAlumni.length === 0) {
-        container.innerHTML = `<div class="p-8 text-center text-navy-400 text-sm bg-white rounded-2xl border border-navy-100">Semua kandidat sudah terverifikasi. Tidak ada antrean.</div>`;
-        return;
-    }
+    // Update badge di header halaman verifikasi
+    const badgeElements = document.querySelectorAll(".bg-amber-100.text-amber-700");
+    badgeElements.forEach(el => el.textContent = `${pendingAlumni.length} Pending Reviews`);
 
     pendingAlumni.forEach((v, i) => {
         const confColor = v.confidence >= 50 ? 'text-amber-600' : 'text-red-500';
         const confBg = v.confidence >= 50 ? 'bg-amber-500' : 'bg-red-400';
         const initials = v.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+        
+        // Ambil data pekerjaan acak agar UI terlihat seperti Canva
+        const job = mockJobs[i % mockJobs.length];
 
         const div = document.createElement("div");
         div.className = "bg-white rounded-2xl border border-navy-100 p-5 anim-fade-up";
         div.style.animationDelay = (i * 0.06) + "s";
+        div.id = `vcard-${v.id}`;
         div.innerHTML = `
             <div class="flex flex-col lg:flex-row lg:items-center gap-4">
                 <div class="flex-1 flex items-start gap-4">
@@ -94,159 +122,183 @@ function renderVerification() {
                         <div class="text-xs text-navy-400 mt-0.5">${v.nim} &middot; ${v.program} &middot; Class of ${v.year}</div>
                     </div>
                 </div>
+
                 <div class="hidden lg:flex items-center text-navy-300 px-2">
                     <i data-lucide="arrow-right" style="width:20px;height:20px;"></i>
                 </div>
+
                 <div class="flex-1 bg-navy-50/50 rounded-xl p-3 border border-dashed border-navy-200">
                     <div class="text-[10px] text-navy-400 uppercase tracking-wider font-semibold mb-1.5">Profile Match Candidate</div>
                     <div class="font-medium text-navy-700 text-sm">${v.name}</div>
-                    <div class="text-xs text-navy-500 mt-0.5">Ditemukan via OSINT Data Mining</div>
+                    <div class="text-xs text-navy-500 mt-0.5">${job.title}</div>
+                    <div class="text-xs text-navy-400 flex items-center gap-1 mt-0.5"><i data-lucide="map-pin" style="width:11px;height:11px;"></i>${job.loc}</div>
                     <div class="flex items-center gap-2 mt-2">
                         <div class="w-20 h-1.5 bg-navy-200 rounded-full overflow-hidden"><div class="h-full ${confBg} rounded-full" style="width:${v.confidence}%"></div></div>
                         <span class="text-xs font-semibold ${confColor}">${v.confidence}% match</span>
                     </div>
                 </div>
+
                 <div class="flex items-center gap-2 shrink-0">
-                    <button onclick="window.verifyAction('${v.id}', 'confirm')" class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl transition font-medium"><i data-lucide="check" style="width:14px;height:14px;"></i> Confirm</button>
-                    <button onclick="window.verifyAction('${v.id}', 'reject')" class="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs rounded-xl transition font-medium"><i data-lucide="x" style="width:14px;height:14px;"></i> Reject</button>
+                    <button onclick="window.verifyAction('${v.id}','confirm')" class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl transition font-medium">
+                        <i data-lucide="check" style="width:14px;height:14px;"></i> Confirm
+                    </button>
+                    <button onclick="window.verifyAction('${v.id}','reject')" class="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs rounded-xl transition font-medium">
+                        <i data-lucide="x" style="width:14px;height:14px;"></i> Reject
+                    </button>
                 </div>
             </div>
         `;
         container.appendChild(div);
     });
-}
-
-// ===== 4. AKSI TOMBOL (TRACK, DELETE, VERIFY) =====
-window.openTrackModal = function(id) {
-    pendingTrackId = id;
-    document.getElementById("modal-track").classList.remove("hidden");
-    document.getElementById("modal-track").classList.add("flex");
-}
-
-document.getElementById("btn-start-track").addEventListener("click", async () => {
-    document.getElementById("modal-track").classList.add("hidden");
-    document.getElementById("modal-track").classList.remove("flex");
-
-    if(!pendingTrackId) return;
-
-    showToast("Memulai pelacakan OSINT...", "radar");
-    const alumniTarget = currentAlumniData.find(a => a.id === pendingTrackId);
-    
-    const hasilPelacakan = runTracking(alumniTarget);
-    await updateStatus(pendingTrackId, hasilPelacakan.status, hasilPelacakan.confidence);
-    
-    showToast(`Pelacakan selesai: ${hasilPelacakan.status}`, "check-circle");
-    loadData();
-    pendingTrackId = null;
-});
-
-// Tutup track modal
-document.getElementById("btn-close-track").addEventListener("click", () => {
-    document.getElementById("modal-track").classList.add("hidden");
-    document.getElementById("modal-track").classList.remove("flex");
-});
-document.getElementById("btn-cancel-track").addEventListener("click", () => {
-    document.getElementById("modal-track").classList.add("hidden");
-    document.getElementById("modal-track").classList.remove("flex");
-});
-
-window.handleDelete = async function(id) {
-    if (confirm("Apakah Anda yakin ingin menghapus data alumni ini?")) {
-        await deleteAlumni(id);
-        showToast("Alumni berhasil dihapus", "trash-2");
-        loadData();
-    }
+    if (window.lucide) lucide.createIcons();
 }
 
 window.verifyAction = async function(id, action) {
-    const newStatus = action === 'confirm' ? 'Identified' : 'Not Found';
-    const newConfidence = action === 'confirm' ? 100 : 0;
-    await updateStatus(id, newStatus, newConfidence);
-    showToast(`Verifikasi manual: ${newStatus}`, action === 'confirm' ? 'check-circle' : 'x-circle');
-    loadData();
+    const card = document.getElementById(`vcard-${id}`);
+    if (card) {
+        card.style.transition = 'all .3s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(20px)';
+    }
+    
+    setTimeout(async () => {
+        const newStatus = action === 'confirm' ? 'Identified' : 'Not Found';
+        const newConfidence = action === 'confirm' ? 100 : 0;
+        await updateStatus(id, newStatus, newConfidence);
+        
+        const msg = action === 'confirm' ? 'Alumni match confirmed' : 'Match rejected';
+        const icon = action === 'confirm' ? 'check-circle' : 'x-circle';
+        showToast(msg, icon);
+        loadData();
+    }, 300);
 }
 
-// ===== 5. UI NOTIFIKASI (TOAST) =====
+// ===== 4. MODAL TRACKING & ADD ALUMNI MENGGUNAKAN FUNGSI CANVA =====
+window.openModal = function(id) {
+    const m = document.getElementById('modal-' + id);
+    if(m) {
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+    }
+}
+
+window.closeModal = function(id) {
+    const m = document.getElementById('modal-' + id);
+    if(m) {
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+    }
+}
+
+// ===== 5. SISTEM NAVIGASI BAWAAN CANVA =====
+window.showPage = function(page) {
+    document.querySelectorAll('[id^="page-"]:not(#page-login)').forEach(el => el.classList.add('hidden'));
+    const targetPage = document.getElementById('page-' + page);
+    if (targetPage) targetPage.classList.remove('hidden');
+
+    document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+    const navBtn = document.querySelector(`[data-nav="${page}"]`);
+    if (navBtn) navBtn.classList.add('active');
+
+    const titles = { 
+        dashboard: ['Dashboard','Overview of alumni tracking progress'], 
+        alumni: ['Alumni Management','Browse, search, and manage alumni records'], 
+        verification: ['Manual Verification','Review and confirm unverified alumni profiles'] 
+    };
+    const t = titles[page] || titles.dashboard;
+    document.getElementById('page-title').textContent = t[0];
+    document.getElementById('page-subtitle').textContent = t[1];
+}
+
+// ===== 6. LOGIN / LOGOUT =====
+document.getElementById('btn-login').addEventListener('click', function() {
+    const user = document.getElementById("login-user").value;
+    const pass = document.getElementById("login-pass").value;
+    
+    // Ganti email sesuai HTML Anda
+    if (user === "admin@university.ac.id" && pass === "admin123") {
+        document.getElementById('page-login').classList.add('hidden');
+        document.getElementById('app-shell').classList.remove('hidden');
+        document.getElementById('app-shell').style.display = 'block';
+        window.showPage('dashboard');
+        loadData();
+    } else {
+        alert("Gunakan: admin@university.ac.id / admin123");
+    }
+});
+
+window.logout = function() {
+    document.getElementById('app-shell').classList.add('hidden');
+    document.getElementById('app-shell').style.display = '';
+    document.getElementById('page-login').classList.remove('hidden');
+    document.getElementById("login-user").value = "";
+    document.getElementById("login-pass").value = "";
+}
+
+// ===== 7. TOAST NOTIFICATION ALA CANVA =====
 function showToast(message, icon) {
-    const container = document.getElementById("toast-container");
-    const toast = document.createElement("div");
-    toast.className = "flex items-center gap-2 bg-navy-800 text-white px-4 py-3 rounded-xl text-sm shadow-lg anim-slide-right";
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'flex items-center gap-2 bg-navy-800 text-white px-4 py-3 rounded-xl text-sm shadow-lg anim-slide-right';
     toast.innerHTML = `<i data-lucide="${icon || 'info'}" style="width:16px;height:16px;"></i> ${message}`;
     container.appendChild(toast);
     if (window.lucide) lucide.createIcons();
-    
-    setTimeout(() => {
-        toast.style.transition = "all .3s ease";
-        toast.style.opacity = "0";
-        toast.style.transform = "translateX(20px)";
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    setTimeout(() => { 
+        toast.style.transition = 'all .3s ease'; 
+        toast.style.opacity = '0'; 
+        toast.style.transform = 'translateX(20px)'; 
+        setTimeout(() => toast.remove(), 300); 
+    }, 2500);
 }
 
-// ===== 6. EVENT LISTENERS UI =====
+// ===== EVENT LISTENERS UNTUK FORM & MODAL KHUSUS =====
 document.addEventListener("DOMContentLoaded", () => {
-    // Navigasi Sidebar
-    const pages = ["dashboard", "alumni", "verification"];
-    pages.forEach(page => {
-        const btn = document.getElementById(`nav-${page}`);
-        if (btn) {
-            btn.addEventListener("click", () => {
-                pages.forEach(p => document.getElementById(`page-${p}`).classList.add("hidden"));
-                document.getElementById(`page-${page}`).classList.remove("hidden");
-                
-                document.querySelectorAll(".sidebar-link").forEach(el => el.classList.remove("active"));
-                btn.classList.add("active");
-                
-                const titles = { dashboard: ['Dashboard','Overview of alumni tracking progress'], alumni: ['Alumni Management','Browse, search, and manage alumni records'], verification: ['Manual Verification','Review and confirm unverified alumni profiles'] };
-                document.getElementById("page-title").textContent = titles[page][0];
-                document.getElementById("page-subtitle").textContent = titles[page][1];
-            });
-        }
-    });
-
-    // Login & Logout
-    const loginForm = document.getElementById("login-form");
-    const loginHandler = () => {
-        const user = document.getElementById("login-user").value;
-        const pass = document.getElementById("login-pass").value;
-        
-        if (user === "admin@university.ac.id" && pass === "admin123") {
-            document.getElementById("page-login").classList.add("hidden");
-            document.getElementById("app-shell").classList.remove("hidden");
+    // Tombol "Start Tracking" dari dalam Modal Track
+    const btnStartTrack = document.querySelector('#modal-track button.bg-emerald-600');
+    if (btnStartTrack) {
+        btnStartTrack.addEventListener('click', async () => {
+            window.closeModal('track');
+            showToast("Memulai pelacakan OSINT ke semua Pending...", "radar");
+            
+            // Lacak semua yang masih Pending
+            const pendingAlumni = currentAlumniData.filter(a => a.status === "Pending" || a.status === "Not Found");
+            for (let alumni of pendingAlumni) {
+                const hasil = runTracking(alumni);
+                await updateStatus(alumni.id, hasil.status, hasil.confidence);
+            }
+            
+            showToast("Pelacakan selesai dikerjakan", "check-circle");
             loadData();
-        } else {
-            alert("Gunakan: admin@university.ac.id / admin123");
-        }
-    };
-    loginForm.addEventListener("submit", (e) => { e.preventDefault(); loginHandler(); });
-    document.getElementById("btn-login").addEventListener("click", loginHandler);
+        });
+    }
 
-    document.getElementById("btn-logout").addEventListener("click", () => {
-        document.getElementById("app-shell").classList.add("hidden");
-        document.getElementById("page-login").classList.remove("hidden");
+    // Submit form tambah alumni
+    const formAdd = document.getElementById("form-add-alumni");
+    if(formAdd) {
+        formAdd.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const newData = {
+                name: document.getElementById("add-name").value,
+                nim: document.getElementById("add-nim").value,
+                program: document.getElementById("add-program").value,
+                year: document.getElementById("add-year").value
+            };
+            showToast("Menyimpan ke database...", "loader");
+            await createAlumni(newData);
+            e.target.reset();
+            window.closeModal('add');
+            showToast("Alumni berhasil ditambahkan!", "check");
+            loadData();
+        });
+    }
+
+    // Menutup modal bila mengklik area gelap (overlay)
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+        m.addEventListener('click', (e) => { 
+            if(e.target === m) { 
+                m.classList.add('hidden'); 
+                m.classList.remove('flex'); 
+            } 
+        });
     });
-
-    // Modal Tambah Alumni
-    const modalAdd = document.getElementById("modal-add");
-    document.getElementById("btn-open-add").addEventListener("click", () => { modalAdd.classList.remove("hidden"); modalAdd.classList.add("flex"); });
-    document.getElementById("btn-close-add").addEventListener("click", () => { modalAdd.classList.add("hidden"); modalAdd.classList.remove("flex"); });
-    document.getElementById("btn-cancel-add").addEventListener("click", () => { modalAdd.classList.add("hidden"); modalAdd.classList.remove("flex"); });
-
-    document.getElementById("form-add-alumni").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const newData = {
-            name: document.getElementById("add-name").value,
-            nim: document.getElementById("add-nim").value,
-            program: document.getElementById("add-program").value,
-            year: document.getElementById("add-year").value
-        };
-        showToast("Menyimpan data alumni...", "loader");
-        await createAlumni(newData);
-        e.target.reset();
-        modalAdd.classList.add("hidden"); modalAdd.classList.remove("flex");
-        showToast("Alumni berhasil ditambahkan!", "check");
-        loadData();
-    });
-
-    if (window.lucide) lucide.createIcons();
 });
