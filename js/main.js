@@ -294,6 +294,36 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // --- Tombol Track All Pending ---
+    const btnTrackAll = document.getElementById("btn-open-track-all");
+    if (btnTrackAll) {
+        btnTrackAll.addEventListener("click", async () => {
+            // Saring hanya alumni yang statusnya "Pending"
+            const pendingAlumni = currentAlumniData.filter(a => a.status === "Pending");
+            
+            if (pendingAlumni.length === 0) {
+                showToast("Tidak ada alumni dengan status Pending.", "info");
+                return;
+            }
+
+            // Minta konfirmasi sebelum menjalankan proses massal
+            if (!confirm(`Apakah Anda yakin ingin menjalankan pelacakan OSINT untuk ${pendingAlumni.length} alumni secara massal?`)) {
+                return;
+            }
+
+            showToast(`Memproses pelacakan ${pendingAlumni.length} alumni...`, "loader");
+            
+            // Lakukan perulangan untuk melacak dan mengupdate data ke Firebase
+            for (let alumni of pendingAlumni) {
+                const hasilPelacakan = runTracking(alumni);
+                await updateStatus(alumni.id, hasilPelacakan.status, hasilPelacakan.confidence);
+            }
+
+            showToast("Pelacakan massal selesai!", "check-circle");
+            loadData(); // Refresh tabel dan dashboard
+        });
+    }
+
     // Login & Logout
     const loginForm = document.getElementById("login-form");
     const loginHandler = () => {
