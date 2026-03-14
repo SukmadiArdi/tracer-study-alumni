@@ -311,13 +311,17 @@ import { updateDashboard } from "./js/dashboard.js";
 let alumniData = [];
 
 
-// ===== LOAD DATA FROM FIREBASE =====
+/* ===============================
+LOAD DATA
+=============================== */
 
-async function loadAlumni() {
+async function loadAlumni(){
 
   alumniData = await getAlumni();
 
   renderAlumniTable();
+
+  renderVerification();
 
   updateDashboard(alumniData);
 
@@ -326,68 +330,159 @@ async function loadAlumni() {
 loadAlumni();
 
 
-// ===== RENDER ALUMNI TABLE =====
 
-window.renderAlumniTable = function () {
+/* ===============================
+RENDER ALUMNI TABLE
+=============================== */
+
+window.renderAlumniTable = function(){
 
   const tbody = document.getElementById("alumni-table-body");
 
-  if (!tbody) return;
+  if(!tbody) return;
 
   tbody.innerHTML = "";
 
-  alumniData.forEach((a, i) => {
+  alumniData.forEach((a,i)=>{
 
-    const tr = document.createElement("tr");
+    const initials = a.name
+      .split(" ")
+      .map(n=>n[0])
+      .join("")
+      .substring(0,2);
 
     const statusColors = {
-      "Identified": "bg-emerald-50 text-emerald-700",
-      "Pending": "bg-amber-50 text-amber-700",
-      "Not Found": "bg-red-50 text-red-600"
+      "Identified":"bg-emerald-50 text-emerald-700",
+      "Pending":"bg-amber-50 text-amber-700",
+      "Not Found":"bg-red-50 text-red-600"
     };
+
+    const confColor =
+      a.confidence >= 80
+      ? "bg-emerald-500"
+      : a.confidence >= 50
+      ? "bg-amber-500"
+      : "bg-red-400";
+
+    const tr = document.createElement("tr");
 
     tr.className = "table-row-hover";
 
     tr.innerHTML = `
-      <td class="px-5 py-3.5">${a.name}</td>
-      <td class="px-5 py-3.5">${a.nim}</td>
-      <td class="px-5 py-3.5">${a.program}</td>
-      <td class="px-5 py-3.5">${a.year}</td>
-      <td class="px-5 py-3.5">
-        <span class="text-xs px-2 py-1 rounded-full ${statusColors[a.status]}">
-          ${a.status}
-        </span>
-      </td>
-      <td class="px-5 py-3.5">
-        ${a.confidence}%
-      </td>
-      <td class="px-5 py-3.5 text-right">
-        <button onclick="trackAlumni(${i})"
-        class="text-blue-500 text-xs mr-2">
-        Track
-        </button>
 
-        <button onclick="removeAlumni(${i})"
-        class="text-red-500 text-xs">
-        Delete
-        </button>
-      </td>
-    `;
+<td class="px-5 py-3.5">
+
+<div class="flex items-center gap-3">
+
+<div class="w-8 h-8 rounded-full bg-navy-100 flex items-center justify-center text-navy-600 text-xs font-semibold shrink-0">
+
+${initials}
+
+</div>
+
+<span class="font-medium text-navy-700">
+
+${a.name}
+
+</span>
+
+</div>
+
+</td>
+
+<td class="px-5 py-3.5 text-navy-500 font-mono text-xs">
+
+${a.nim}
+
+</td>
+
+<td class="px-5 py-3.5 text-navy-500">
+
+${a.program}
+
+</td>
+
+<td class="px-5 py-3.5 text-navy-500">
+
+${a.year}
+
+</td>
+
+<td class="px-5 py-3.5">
+
+<span class="text-xs font-medium px-2.5 py-1 rounded-full ${statusColors[a.status]}">
+
+${a.status}
+
+</span>
+
+</td>
+
+<td class="px-5 py-3.5">
+
+<div class="flex items-center gap-2">
+
+<div class="w-16 h-1.5 bg-navy-100 rounded-full overflow-hidden">
+
+<div class="h-full ${confColor}" style="width:${a.confidence}%"></div>
+
+</div>
+
+<span class="text-xs font-semibold text-navy-600">
+
+${a.confidence}%
+
+</span>
+
+</div>
+
+</td>
+
+<td class="px-5 py-3.5 text-right">
+
+<div class="flex items-center justify-end gap-1">
+
+<button onclick="trackAlumni(${i})"
+class="p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-600">
+
+<i data-lucide="radar" style="width:15px;height:15px;"></i>
+
+</button>
+
+<button onclick="removeAlumni(${i})"
+class="p-1.5 rounded-lg hover:bg-red-50 text-navy-400 hover:text-red-500">
+
+<i data-lucide="trash-2" style="width:15px;height:15px;"></i>
+
+</button>
+
+</div>
+
+</td>
+`;
 
     tbody.appendChild(tr);
 
   });
 
-}
+  lucide.createIcons();
+
+};
 
 
-// ===== ADD ALUMNI =====
 
-window.saveAlumni = async function () {
+/* ===============================
+ADD ALUMNI
+=============================== */
+
+window.saveAlumni = async function(){
 
   const name = document.getElementById("add-name").value;
+
   const nim = document.getElementById("add-nim").value;
+
   const program = document.getElementById("add-program").value;
+
   const year = document.getElementById("add-year").value;
 
   await addAlumni({
@@ -395,18 +490,21 @@ window.saveAlumni = async function () {
     nim,
     program,
     year,
-    status: "Pending",
-    confidence: 0
+    status:"Pending",
+    confidence:0
   });
 
   await loadAlumni();
 
-}
+};
 
 
-// ===== DELETE ALUMNI =====
 
-window.removeAlumni = async function (index) {
+/* ===============================
+DELETE ALUMNI
+=============================== */
+
+window.removeAlumni = async function(index){
 
   const id = alumniData[index].id;
 
@@ -414,22 +512,136 @@ window.removeAlumni = async function (index) {
 
   await loadAlumni();
 
-}
+};
 
 
-// ===== RUN TRACKING =====
 
-window.trackAlumni = async function (index) {
+/* ===============================
+RUN TRACKING
+=============================== */
+
+window.trackAlumni = async function(index){
 
   const alumni = alumniData[index];
 
   const result = runTracking(alumni);
 
-  await updateStatus(alumni.id, result.status, result.confidence);
+  await updateStatus(
+    alumni.id,
+    result.status,
+    result.confidence
+  );
 
   await loadAlumni();
 
+};
+
+
+
+/* ===============================
+MANUAL VERIFICATION
+=============================== */
+
+function renderVerification(){
+
+  const container = document.getElementById("verification-list");
+
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  alumniData
+  .filter(a => a.status === "Pending")
+  .forEach(a=>{
+
+    const initials = a.name
+      .split(" ")
+      .map(n=>n[0])
+      .join("")
+      .substring(0,2);
+
+    container.innerHTML += `
+
+<div class="bg-white rounded-2xl border border-navy-100 p-5">
+
+<div class="flex items-center justify-between">
+
+<div class="flex items-center gap-3">
+
+<div class="w-11 h-11 rounded-xl bg-navy-100 flex items-center justify-center text-navy-600 text-sm font-bold">
+
+${initials}
+
+</div>
+
+<div>
+
+<div class="font-semibold text-navy-700">
+
+${a.name}
+
+</div>
+
+<div class="text-xs text-navy-400">
+
+${a.nim} · ${a.program} · Class of ${a.year}
+
+</div>
+
+</div>
+
+</div>
+
+<div class="flex gap-2">
+
+<button onclick="confirmVerification('${a.id}')"
+class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs rounded-xl">
+
+Confirm
+
+</button>
+
+<button onclick="rejectVerification('${a.id}')"
+class="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-xs rounded-xl">
+
+Reject
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+`;
+
+  });
+
 }
+
+
+
+/* ===============================
+VERIFY ACTION
+=============================== */
+
+window.confirmVerification = async function(id){
+
+  await updateStatus(id,"Identified",90);
+
+  await loadAlumni();
+
+};
+
+window.rejectVerification = async function(id){
+
+  await updateStatus(id,"Not Found",0);
+
+  await loadAlumni();
+
+};
+
 
 </script>
 
