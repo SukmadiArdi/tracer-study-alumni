@@ -1,6 +1,5 @@
 <!doctype html>
 <html lang="en" class="h-full">
-
 <head>
 
 <meta charset="UTF-8">
@@ -8,15 +7,22 @@
 
 <title>Alumni Tracer Study System</title>
 
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
 <script>
 tailwind.config = {
-theme:{
-extend:{
-colors:{
-navy:{
+theme: {
+extend: {
+colors: {
+navy: { 
 50:'#f0f4fa',
 100:'#dce4f2',
 200:'#bccbe7',
@@ -28,42 +34,58 @@ navy:{
 800:'#0f2041',
 900:'#0a1628'
 },
-slate_surface:'#f7f9fc',
-card_white:'#ffffff'
+slate_surface: '#f7f9fc',
+card_white: '#ffffff'
 }
 }
 }
 }
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-
 <style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'DM Sans', sans-serif; }
+.font-display { font-family: 'Playfair Display', serif; }
 
-html,body{
-height:100%;
-font-family:'DM Sans',sans-serif;
-background:#f7f9fc;
+@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+@keyframes scaleIn { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
+@keyframes slideRight { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
+@keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+.anim-fade-up { animation: fadeUp .5s ease both; }
+.anim-scale-in { animation: scaleIn .4s ease both; }
+.anim-slide-right { animation: slideRight .4s ease both; }
+
+.anim-delay-1 { animation-delay: .08s; }
+.anim-delay-2 { animation-delay: .16s; }
+.anim-delay-3 { animation-delay: .24s; }
+.anim-delay-4 { animation-delay: .32s; }
+.anim-delay-5 { animation-delay: .4s; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #bccbe7; border-radius: 3px; }
+
+.progress-ring-circle {
+transition: stroke-dashoffset 0.6s ease;
+transform: rotate(-90deg);
+transform-origin: 50% 50%;
 }
 
-.font-display{
-font-family:'Playfair Display',serif;
+.table-row-hover { transition: background .15s ease; }
+.table-row-hover:hover { background: #f0f4fa; }
+
+.sidebar-link { transition: all .15s ease; }
+.sidebar-link:hover { background: rgba(255,255,255,.12); }
+.sidebar-link.active { background: rgba(255,255,255,.18); border-left: 3px solid #fff; }
+
+.badge-pulse { animation: pulse-dot 2s ease infinite; }
+
+.modal-overlay {
+background: rgba(10,22,40,.45);
+backdrop-filter: blur(4px);
 }
 
-.table-row-hover:hover{
-background:#f0f4fa;
-}
-
-.sidebar-link:hover{
-background:rgba(255,255,255,.12);
-}
-
-.sidebar-link.active{
-background:rgba(255,255,255,.18);
-border-left:3px solid #fff;
-}
+.custom-check { accent-color: #1e3a6e; }
 
 </style>
 
@@ -71,40 +93,82 @@ border-left:3px solid #fff;
 
 <body class="h-full bg-slate_surface text-navy-800 overflow-auto">
 
-<!-- LOGIN PAGE -->
+<!-- ===== LOGIN PAGE ===== -->
 
 <div id="page-login" class="h-full w-full flex">
 
-<div class="hidden lg:flex w-1/2 bg-gradient-to-br from-navy-600 via-navy-700 to-navy-900 items-center justify-center">
+<!-- Left panel -->
+<div class="hidden lg:flex w-1/2 bg-gradient-to-br from-navy-600 via-navy-700 to-navy-900 relative overflow-hidden flex-col justify-center items-center p-12">
 
-<h2 class="text-white font-display text-3xl">
-Alumni Tracer Study
-</h2>
+<div class="absolute top-0 left-0 w-full h-full opacity-10">
+
+<div class="absolute top-10 left-10 w-64 h-64 rounded-full border-2 border-white"></div>
+<div class="absolute bottom-20 right-10 w-48 h-48 rounded-full border border-white"></div>
+<div class="absolute top-1/3 right-1/4 w-32 h-32 rounded-full bg-white/10"></div>
+<div class="absolute bottom-1/3 left-1/4 w-20 h-20 rounded-full bg-white/5"></div>
 
 </div>
 
+<div class="relative z-10 anim-scale-in">
 
-<div class="w-full lg:w-1/2 flex items-center justify-center p-10">
+<svg width="280" height="240" viewBox="0 0 280 240" fill="none">
 
-<div class="w-full max-w-md">
+<circle cx="140" cy="120" r="36" fill="rgba(255,255,255,.15)" stroke="white" stroke-width="2" />
 
-<h1 class="font-display text-3xl text-navy-800 mb-6">
+<text x="140" y="110" text-anchor="middle" fill="white" font-size="11" font-family="DM Sans" font-weight="600">
+ALUMNI
+</text>
+
+<text x="140" y="126" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="9" font-family="DM Sans">
+NETWORK
+</text>
+
+</svg>
+
+</div>
+
+<div class="relative z-10 mt-10 text-center anim-fade-up anim-delay-2">
+
+<h2 class="text-white font-display text-2xl mb-2">
+Alumni Tracer Study
+</h2>
+
+<p class="text-white/60 text-sm max-w-xs">
+Connecting graduates with their alma mater.
+</p>
+
+</div>
+
+</div>
+
+<!-- Login form -->
+
+<div class="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16">
+
+<div class="w-full max-w-md anim-fade-up">
+
+<h1 class="font-display text-3xl text-navy-800 mb-1">
 Welcome back
 </h1>
 
-<form onsubmit="return false;" class="space-y-4">
+<p class="text-navy-400 mb-8 text-sm">
+Sign in to access the Alumni Tracer dashboard
+</p>
+
+<form onsubmit="return false;" class="space-y-5">
 
 <input id="login-user"
-placeholder="Username"
-class="w-full border border-navy-200 p-3 rounded-xl">
+type="text"
+placeholder="admin@university.ac.id"
+class="w-full px-4 py-3 rounded-xl border border-navy-200">
 
 <input id="login-pass"
 type="password"
-placeholder="Password"
-class="w-full border border-navy-200 p-3 rounded-xl">
+placeholder="••••••••"
+class="w-full px-4 py-3 rounded-xl border border-navy-200">
 
 <button id="btn-login"
-class="w-full py-3 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-semibold">
+class="w-full py-3 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-semibold text-sm">
 
 Sign In
 
@@ -118,48 +182,50 @@ Sign In
 
 </div>
 
+<!-- ===== DASHBOARD SHELL ===== -->
 
-<!-- APP SHELL -->
+<div id="app-shell" class="h-full w-full hidden">
 
-<div id="app-shell" class="hidden h-full w-full">
-
-<div class="flex h-full">
+<div class="flex h-full w-full">
 
 <!-- SIDEBAR -->
 
-<aside class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 flex flex-col">
+<aside id="sidebar"
+class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 flex flex-col shrink-0">
 
-<div class="p-5 text-white font-semibold border-b border-white/10">
+<div class="p-5 flex items-center gap-3 border-b border-white/10">
 
+<div class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-white">
+TS
+</div>
+
+<div>
+<span class="text-white font-semibold text-sm block">
 Tracer Study
+</span>
+</div>
 
 </div>
 
-<nav class="flex-1 p-3 space-y-2">
+<nav class="flex-1 py-4 px-3 space-y-1">
 
-<button onclick="showPage('dashboard')"
-class="sidebar-link active w-full text-left text-white px-3 py-2 rounded"
-data-nav="dashboard">
-Dashboard
+<button onclick="showPage('dashboard')" class="sidebar-link active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="dashboard">
+<i data-lucide="layout-dashboard"></i> Dashboard
 </button>
 
-<button onclick="showPage('alumni')"
-class="sidebar-link w-full text-left text-white px-3 py-2 rounded"
-data-nav="alumni">
-Alumni Management
+<button onclick="showPage('alumni')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="alumni">
+<i data-lucide="users"></i> Alumni Management
 </button>
 
-<button onclick="showPage('verification')"
-class="sidebar-link w-full text-left text-white px-3 py-2 rounded"
-data-nav="verification">
-Manual Verification
+<button onclick="showPage('verification')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="verification">
+<i data-lucide="check-circle"></i> Manual Verification
 </button>
 
 </nav>
 
 <div class="p-4 border-t border-white/10">
 
-<button onclick="logout()" class="text-white text-sm">
+<button onclick="logout()" class="text-white/60 text-sm">
 Logout
 </button>
 
@@ -167,93 +233,35 @@ Logout
 
 </aside>
 
-
 <!-- MAIN -->
 
 <main class="flex-1 overflow-y-auto">
 
+<header class="bg-white border-b px-6 py-3">
 
-<header class="bg-white border-b p-4">
-
-<h2 id="page-title" class="font-semibold text-navy-700">
+<h2 class="font-semibold text-navy-800 text-lg" id="page-title">
 Dashboard
 </h2>
 
 </header>
 
-
-<!-- DASHBOARD -->
-
 <section id="page-dashboard" class="p-6">
 
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-<div class="bg-white p-5 rounded-xl border">
-<div class="text-2xl font-bold">8412</div>
-<div class="text-sm text-navy-400">Total Alumni</div>
-</div>
-
-<div class="bg-white p-5 rounded-xl border">
-<div class="text-2xl font-bold">6561</div>
-<div class="text-sm text-navy-400">Identified</div>
-</div>
-
-<div class="bg-white p-5 rounded-xl border">
-<div class="text-2xl font-bold">1204</div>
-<div class="text-sm text-navy-400">Pending</div>
-</div>
-
-<div class="bg-white p-5 rounded-xl border">
-<div class="text-2xl font-bold">647</div>
-<div class="text-sm text-navy-400">Not Found</div>
-</div>
-
-</div>
+<p class="text-navy-400 text-sm">
+Overview of alumni tracking progress
+</p>
 
 </section>
-
-
-<!-- ALUMNI PAGE -->
 
 <section id="page-alumni" class="p-6 hidden">
-
-<button onclick="openModal()" class="mb-4 bg-navy-600 text-white px-4 py-2 rounded">
-Add Alumni
-</button>
-
-<table class="w-full bg-white rounded-xl border text-sm">
-
-<thead>
-
-<tr class="bg-navy-50">
-
-<th class="p-3 text-left">Name</th>
-<th class="p-3 text-left">NIM</th>
-<th class="p-3 text-left">Program</th>
-<th class="p-3 text-left">Year</th>
-<th class="p-3 text-left">Status</th>
-<th class="p-3 text-left">Confidence</th>
-<th class="p-3 text-right">Action</th>
-
-</tr>
-
-</thead>
-
+<table class="w-full text-sm">
 <tbody id="alumni-table-body"></tbody>
-
 </table>
-
 </section>
-
-
-<!-- VERIFICATION -->
 
 <section id="page-verification" class="p-6 hidden">
-
 <div id="verification-list"></div>
-
 </section>
-
 
 </main>
 
@@ -261,184 +269,36 @@ Add Alumni
 
 </div>
 
-
-<!-- MODAL -->
-
-<div id="modal-add"
-class="fixed inset-0 hidden items-center justify-center bg-black/40">
-
-<div class="bg-white p-6 rounded-xl w-96">
-
-<h3 class="font-semibold mb-4">Add Alumni</h3>
-
-<input id="add-name"
-placeholder="Name"
-class="border p-2 w-full mb-2">
-
-<input id="add-nim"
-placeholder="NIM"
-class="border p-2 w-full mb-2">
-
-<input id="add-program"
-placeholder="Program"
-class="border p-2 w-full mb-2">
-
-<input id="add-year"
-placeholder="Year"
-class="border p-2 w-full mb-4">
-
-<div class="flex justify-end gap-2">
-
-<button onclick="closeModal()">Cancel</button>
-
-<button onclick="saveAlumni()" class="bg-navy-600 text-white px-3 py-2 rounded">
-
-Save
-
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-
-
 <script>
 
-/* SAMPLE DATA */
+function showPage(page){
 
-let alumniData=[
-{name:'Rina Kartika', nim:'19103001', program:'Computer Science', year:2023, status:'Identified', confidence:96},
-{name:'Budi Santoso', nim:'19103045', program:'Information Systems', year:2023, status:'Identified', confidence:89},
-{name:'Dewi Lestari', nim:'20201012', program:'Business Administration', year:2024, status:'Pending', confidence:62}
-];
+document.querySelectorAll('[id^="page-"]:not(#page-login)')
+.forEach(el=>el.classList.add('hidden'));
 
+document.getElementById('page-'+page).classList.remove('hidden');
 
-/* LOGIN */
+}
 
 document.getElementById("btn-login").onclick=function(){
 
 document.getElementById("page-login").classList.add("hidden");
-
 document.getElementById("app-shell").classList.remove("hidden");
 
-renderAlumniTable();
+showPage("dashboard");
 
 lucide.createIcons();
 
 }
 
+function logout(){
 
-/* NAVIGATION */
-
-function showPage(page){
-
-document.querySelectorAll("[id^='page-']").forEach(p=>{
-
-if(p.id!=="page-login") p.classList.add("hidden");
-
-});
-
-document.getElementById("page-"+page).classList.remove("hidden");
+document.getElementById("app-shell").classList.add("hidden");
+document.getElementById("page-login").classList.remove("hidden");
 
 }
 
-
-/* RENDER TABLE */
-
-function renderAlumniTable(){
-
-const tbody=document.getElementById("alumni-table-body");
-
-tbody.innerHTML="";
-
-alumniData.forEach((a,i)=>{
-
-const tr=document.createElement("tr");
-
-tr.className="table-row-hover";
-
-tr.innerHTML=`
-
-<td class="p-3">${a.name}</td>
-<td class="p-3">${a.nim}</td>
-<td class="p-3">${a.program}</td>
-<td class="p-3">${a.year}</td>
-<td class="p-3">${a.status}</td>
-<td class="p-3">${a.confidence}%</td>
-
-<td class="p-3 text-right">
-
-<button onclick="deleteAlumni(${i})"
-class="text-red-500">
-Delete
-</button>
-
-</td>
-
-`;
-
-tbody.appendChild(tr);
-
-});
-
-}
-
-
-/* DELETE */
-
-function deleteAlumni(i){
-
-alumniData.splice(i,1);
-
-renderAlumniTable();
-
-}
-
-
-/* MODAL */
-
-function openModal(){
-
-document.getElementById("modal-add").classList.remove("hidden");
-document.getElementById("modal-add").classList.add("flex");
-
-}
-
-function closeModal(){
-
-document.getElementById("modal-add").classList.add("hidden");
-
-}
-
-
-/* ADD */
-
-function saveAlumni(){
-
-const name=document.getElementById("add-name").value;
-const nim=document.getElementById("add-nim").value;
-const program=document.getElementById("add-program").value;
-const year=document.getElementById("add-year").value;
-
-alumniData.push({
-
-name,
-nim,
-program,
-year,
-status:"Pending",
-confidence:0
-
-});
-
-closeModal();
-
-renderAlumniTable();
-
-}
+lucide.createIcons();
 
 </script>
 
