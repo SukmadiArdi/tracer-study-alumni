@@ -3,7 +3,7 @@ import { runTracking } from "./tracking.js";
 import { updateDashboard } from "./dashboard.js";
 
 let currentAlumniData = [];
-let pendingTrackId = null;
+let pendingTrackId = null; // Menyimpan ID tunggal ATAU flag "ALL"
 
 // ===== 1. INISIALISASI & LOAD DATA =====
 async function loadData() {
@@ -63,7 +63,6 @@ function renderAlumniTable() {
     });
 }
 
-// Fitur 1: Mengembalikan fungsi Delete Inline khas UI aslinya
 window.deleteAlumniInline = function(id) {
     const actionCell = document.getElementById(`action-cell-${id}`);
     if (!actionCell) return;
@@ -77,11 +76,11 @@ window.deleteAlumniInline = function(id) {
 window.confirmDelete = async function(id) {
     await deleteAlumni(id);
     showToast('Alumni record deleted', 'trash-2');
-    loadData(); // Refresh ulang UI
+    loadData();
 }
 
 window.cancelDelete = function() {
-    loadData(); // Cukup reload ulang untuk mereset tampilan tombol aksi
+    loadData();
 }
 
 // ===== 3. RENDER DAFTAR VERIFIKASI MANUAL =====
@@ -141,7 +140,7 @@ function renderVerification() {
 
 // ===== 4. AKSI MODAL TRACK & VERIFY =====
 window.openTrackModal = function(id) {
-    pendingTrackId = id;
+    pendingTrackId = id; // Track ID spesifik (dari tombol di dalam tabel)
     document.getElementById("modal-track").classList.remove("hidden");
     document.getElementById("modal-track").classList.add("flex");
 }
@@ -152,13 +151,35 @@ document.getElementById("btn-start-track").addEventListener("click", async () =>
 
     if(!pendingTrackId) return;
 
-    showToast("Memulai pelacakan OSINT...", "radar");
-    const alumniTarget = currentAlumniData.find(a => a.id === pendingTrackId);
-    
-    const hasilPelacakan = runTracking(alumniTarget);
-    await updateStatus(pendingTrackId, hasilPelacakan.status, hasilPelacakan.confidence);
-    
-    showToast(`Pelacakan selesai: ${hasilPelacakan.status}`, "check-circle");
+    if (pendingTrackId === "ALL") {
+        // --- LOGIKA TRACK ALL PENDING ---
+        showToast("Memulai pelacakan massal OSINT...", "radar");
+        const pendingAlumni = currentAlumniData.filter(a => a.status === "Pending" || a.status === "Not Found");
+        
+        if (pendingAlumni.length === 0) {
+            showToast("Tidak ada data Pending yang perlu dilacak.", "info");
+            return;
+        }
+
+        // Looping untuk memproses data satu per satu ke Firebase
+        for (const alumni of pendingAlumni) {
+            const hasil = runTracking(alumni);
+            await updateStatus(alumni.id, hasil.status, hasil.confidence);
+        }
+        
+        showToast(`Pelacakan massal selesai (${pendingAlumni.length} data)`, "check-circle");
+
+    } else {
+        // --- LOGIKA TRACK INDIVIDU ---
+        showToast("Memulai pelacakan OSINT...", "radar");
+        const alumniTarget = currentAlumniData.find(a => a.id === pendingTrackId);
+        
+        const hasilPelacakan = runTracking(alumniTarget);
+        await updateStatus(pendingTrackId, hasilPelacakan.status, hasilPelacakan.confidence);
+        
+        showToast(`Pelacakan selesai: ${hasilPelacakan.status}`, "check-circle");
+    }
+
     loadData();
     pendingTrackId = null;
 });
@@ -177,7 +198,6 @@ window.verifyAction = async function(id, action) {
     const newStatus = action === 'confirm' ? 'Identified' : 'Not Found';
     const newConfidence = action === 'confirm' ? 100 : 0;
     
-    // Animasi geser dan hapus yang ada di source code asli
     if(card) {
         card.style.transition = 'all .3s ease';
         card.style.opacity = '0';
@@ -203,7 +223,7 @@ function showToast(message, icon) {
     setTimeout(() => { toast.style.transition = 'all .3s ease'; toast.style.opacity = '0'; toast.style.transform = 'translateX(20px)'; setTimeout(() => toast.remove(), 300); }, 2500);
 }
 
-// ===== 6. ELEMENT SDK (Fitur Pengaturan Tema Canva Asli) =====
+// ===== 6. ELEMENT SDK =====
 const defaultConfig = {
     background_color: '#f7f9fc',
     surface_color: '#ffffff',
@@ -275,7 +295,6 @@ if (window.elementSdk) {
 
 // ===== 7. EVENT LISTENERS UI PADA INIT =====
 document.addEventListener("DOMContentLoaded", () => {
-    // Navigasi
     const pages = ["dashboard", "alumni", "verification"];
     pages.forEach(page => {
         const btn = document.getElementById(`nav-${page}`);
@@ -294,37 +313,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- Tombol Track All Pending ---
-    const btnTrackAll = document.getElementById("btn-open-track-all");
-    if (btnTrackAll) {
-        btnTrackAll.addEventListener("click", async () => {
-            // Saring hanya alumni yang statusnya "Pending"
-            const pendingAlumni = currentAlumniData.filter(a => a.status === "Pending");
-            
-            if (pendingAlumni.length === 0) {
-                showToast("Tidak ada alumni dengan status Pending.", "info");
-                return;
-            }
-
-            // Minta konfirmasi sebelum menjalankan proses massal
-            if (!confirm(`Apakah Anda yakin ingin menjalankan pelacakan OSINT untuk ${pendingAlumni.length} alumni secara massal?`)) {
-                return;
-            }
-
-            showToast(`Memproses pelacakan ${pendingAlumni.length} alumni...`, "loader");
-            
-            // Lakukan perulangan untuk melacak dan mengupdate data ke Firebase
-            for (let alumni of pendingAlumni) {
-                const hasilPelacakan = runTracking(alumni);
-                await updateStatus(alumni.id, hasilPelacakan.status, hasilPelacakan.confidence);
-            }
-
-            showToast("Pelacakan massal selesai!", "check-circle");
-            loadData(); // Refresh tabel dan dashboard
-        });
-    }
-
-    // Login & Logout
     const loginForm = document.getElementById("login-form");
     const loginHandler = () => {
         const user = document.getElementById("login-user").value;
@@ -346,7 +334,16 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("page-login").classList.remove("hidden");
     });
 
-    // Modal Tambah Alumni
+    // Event Listener untuk Tombol Track All Pending di luar tabel
+    const btnTrackAll = document.getElementById("btn-open-track-all");
+    if (btnTrackAll) {
+        btnTrackAll.addEventListener("click", () => {
+            pendingTrackId = "ALL"; // Berikan flag khusus untuk trigger mass tracking
+            document.getElementById("modal-track").classList.remove("hidden");
+            document.getElementById("modal-track").classList.add("flex");
+        });
+    }
+
     const modalAdd = document.getElementById("modal-add");
     document.getElementById("btn-open-add").addEventListener("click", () => { modalAdd.classList.remove("hidden"); modalAdd.classList.add("flex"); });
     document.getElementById("btn-close-add").addEventListener("click", () => { modalAdd.classList.add("hidden"); modalAdd.classList.remove("flex"); });
