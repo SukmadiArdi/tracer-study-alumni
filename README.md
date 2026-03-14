@@ -1,38 +1,49 @@
 # Alumni Tracer Study System
 
-Web-based system to track alumni career outcomes.
+Web-based tracer study system used to track alumni career outcomes.
 
 ## Features
 
 - Admin Login
-- Dashboard Statistics
 - Alumni Management
+- Alumni Tracking (OSINT Simulation)
 - Manual Verification
-- Tracking Algorithm
+- Dashboard Statistics
 - Cloud Database
 
 ## Technology
 
-HTML  
-Tailwind CSS  
-JavaScript  
-Firebase Firestore  
+- HTML
+- TailwindCSS
+- JavaScript
+- Firebase Firestore
+- Chart.js
 
-## Live Website
+## Deployment
+
+Live Website
 
 https://username.github.io/tracer-study-alumni/
 
-## GitHub Repository
+GitHub Repository
 
 https://github.com/username/tracer-study-alumni
 
+## System Testing
 
-## Testing
+| No | Feature | Test Case | Expected Result | Status |
+|----|--------|-----------|----------------|-------|
+|1|Login|Admin login|Dashboard opened|Pass|
+|2|Add Alumni|Insert alumni data|Data saved to database|Pass|
+|3|Delete Alumni|Delete button|Data removed|Pass|
+|4|Tracking Algorithm|Run tracker|Confidence score calculated|Pass|
+|5|Dashboard Chart|Load data|Chart displayed|Pass|
 
-| No | Feature | Test Case | Result |
-|----|--------|-----------|-------|
-|1|Login|Admin login|Success|
-|2|Add Alumni|Add alumni data|Success|
-|3|Tracking|Calculate confidence score|Success|
-|4|Delete Alumni|Remove alumni|Success|
-|5|Verification|Confirm match|Success|
+## Quality Attributes
+
+| Aspect | Description |
+|------|-------------|
+|Functionality|All CRUD operations work|
+|Usability|Simple admin dashboard|
+|Efficiency|Fast data retrieval from Firebase|
+|Reliability|Cloud database prevents data loss|
