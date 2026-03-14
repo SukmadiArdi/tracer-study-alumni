@@ -1,26 +1,70 @@
 import { getAlumni, createAlumni, deleteAlumni, updateStatus } from "./alumni.js";
 import { runTracking } from "./tracking.js";
-import { updateDashboard } from "./dashboard.js";
+import { updateDashboard, addActivity } from "./dashboard.js";
 
 let currentAlumniData = [];
-let pendingTrackId = null; // Menyimpan ID tunggal ATAU flag "ALL"
+let pendingTrackId = null;
 
 // ===== 1. INISIALISASI & LOAD DATA =====
 async function loadData() {
     currentAlumniData = await getAlumni();
+    updateFilterYearsOptions(); // Set option tahun filter secara dinamis
     renderAlumniTable();
     renderVerification();
     updateDashboard(currentAlumniData);
     if (window.lucide) lucide.createIcons();
 }
 
-// ===== 2. RENDER TABEL ALUMNI =====
+// ===== FILTER DINAMIS =====
+function updateFilterYearsOptions() {
+    const filterYear = document.getElementById("filter-year");
+    if(!filterYear) return;
+    
+    // Ambil tahun yang unik dari DB, lalu urutkan dari yang terbaru
+    const uniqueYears = [...new Set(currentAlumniData.map(a => a.year))].filter(y => y).sort((a,b)=>b-a);
+    const currentVal = filterYear.value;
+    
+    filterYear.innerHTML = '<option value="All">All Years</option>' + 
+                           uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+    
+    // Kembalikan ke value yang sedang dipilih user jika masih ada
+    filterYear.value = uniqueYears.includes(parseInt(currentVal)) ? currentVal : "All";
+}
+
+// Tambahkan Event Listener ke semua elemen filter
+document.getElementById("filter-program").addEventListener("change", renderAlumniTable);
+document.getElementById("filter-year").addEventListener("change", renderAlumniTable);
+document.getElementById("filter-status").addEventListener("change", renderAlumniTable);
+
+
+// ===== 2. RENDER TABEL ALUMNI (DENGAN FILTERING) =====
 function renderAlumniTable() {
     const tbody = document.getElementById("alumni-table-body");
+    const countText = document.getElementById("table-count-text");
     if (!tbody) return;
-    tbody.innerHTML = "";
+    
+    // Ambil Nilai Filter Saat Ini
+    const fProg = document.getElementById("filter-program").value;
+    const fYear = document.getElementById("filter-year").value;
+    const fStat = document.getElementById("filter-status").value;
 
-    currentAlumniData.forEach((a) => {
+    // Terapkan Filter
+    const filteredData = currentAlumniData.filter(a => {
+        if (fProg !== "All" && a.program !== fProg) return false;
+        if (fYear !== "All" && a.year.toString() !== fYear) return false;
+        if (fStat !== "All" && a.status !== fStat) return false;
+        return true;
+    });
+
+    tbody.innerHTML = "";
+    if(countText) countText.textContent = `Showing ${filteredData.length} of ${currentAlumniData.length} total alumni`;
+
+    if(filteredData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-navy-400">Tidak ada data yang sesuai filter</td></tr>`;
+        return;
+    }
+
+    filteredData.forEach((a) => {
         const statusColors = { 
             'Identified': 'bg-emerald-50 text-emerald-700', 
             'Pending': 'bg-amber-50 text-amber-700', 
@@ -61,6 +105,7 @@ function renderAlumniTable() {
         `;
         tbody.appendChild(tr);
     });
+    if (window.lucide) lucide.createIcons();
 }
 
 window.deleteAlumniInline = function(id) {
@@ -75,13 +120,11 @@ window.deleteAlumniInline = function(id) {
 
 window.confirmDelete = async function(id) {
     await deleteAlumni(id);
+    addActivity("Data alumni dihapus dari sistem", "trash-2", "text-red-600", "bg-red-50");
     showToast('Alumni record deleted', 'trash-2');
     loadData();
 }
-
-window.cancelDelete = function() {
-    loadData();
-}
+window.cancelDelete = function() { loadData(); }
 
 // ===== 3. RENDER DAFTAR VERIFIKASI MANUAL =====
 function renderVerification() {
@@ -116,9 +159,7 @@ function renderVerification() {
                         <div class="text-xs text-navy-400 mt-0.5">${v.nim} &middot; ${v.program} &middot; Class of ${v.year}</div>
                     </div>
                 </div>
-                <div class="hidden lg:flex items-center text-navy-300 px-2">
-                    <i data-lucide="arrow-right" style="width:20px;height:20px;"></i>
-                </div>
+                <div class="hidden lg:flex items-center text-navy-300 px-2"><i data-lucide="arrow-right" style="width:20px;height:20px;"></i></div>
                 <div class="flex-1 bg-navy-50/50 rounded-xl p-3 border border-dashed border-navy-200">
                     <div class="text-[10px] text-navy-400 uppercase tracking-wider font-semibold mb-1.5">Profile Match Candidate</div>
                     <div class="font-medium text-navy-700 text-sm">${v.name}</div>
@@ -140,7 +181,7 @@ function renderVerification() {
 
 // ===== 4. AKSI MODAL TRACK & VERIFY =====
 window.openTrackModal = function(id) {
-    pendingTrackId = id; // Track ID spesifik (dari tombol di dalam tabel)
+    pendingTrackId = id; 
     document.getElementById("modal-track").classList.remove("hidden");
     document.getElementById("modal-track").classList.add("flex");
 }
@@ -152,7 +193,6 @@ document.getElementById("btn-start-track").addEventListener("click", async () =>
     if(!pendingTrackId) return;
 
     if (pendingTrackId === "ALL") {
-        // --- LOGIKA TRACK ALL PENDING ---
         showToast("Memulai pelacakan massal OSINT...", "radar");
         const pendingAlumni = currentAlumniData.filter(a => a.status === "Pending" || a.status === "Not Found");
         
@@ -161,22 +201,22 @@ document.getElementById("btn-start-track").addEventListener("click", async () =>
             return;
         }
 
-        // Looping untuk memproses data satu per satu ke Firebase
         for (const alumni of pendingAlumni) {
             const hasil = runTracking(alumni);
             await updateStatus(alumni.id, hasil.status, hasil.confidence);
         }
         
-        showToast(`Pelacakan massal selesai (${pendingAlumni.length} data)`, "check-circle");
+        addActivity(`Pelacakan massal selesai (${pendingAlumni.length} data)`, "search", "text-blue-600", "bg-blue-50");
+        showToast(`Pelacakan massal selesai`, "check-circle");
 
     } else {
-        // --- LOGIKA TRACK INDIVIDU ---
         showToast("Memulai pelacakan OSINT...", "radar");
         const alumniTarget = currentAlumniData.find(a => a.id === pendingTrackId);
         
         const hasilPelacakan = runTracking(alumniTarget);
         await updateStatus(pendingTrackId, hasilPelacakan.status, hasilPelacakan.confidence);
         
+        addActivity(`Pelacakan selesai untuk: ${alumniTarget.name}`, "search", "text-blue-600", "bg-blue-50");
         showToast(`Pelacakan selesai: ${hasilPelacakan.status}`, "check-circle");
     }
 
@@ -207,6 +247,7 @@ window.verifyAction = async function(id, action) {
     await updateStatus(id, newStatus, newConfidence);
     
     setTimeout(() => { 
+        addActivity(`Verifikasi manual selesai: ${newStatus}`, action === 'confirm' ? 'check' : 'x', "text-emerald-600", "bg-emerald-50");
         showToast(`Verifikasi manual: ${newStatus}`, action === 'confirm' ? 'check-circle' : 'x-circle');
         loadData(); 
     }, 300);
@@ -334,11 +375,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("page-login").classList.remove("hidden");
     });
 
-    // Event Listener untuk Tombol Track All Pending di luar tabel
     const btnTrackAll = document.getElementById("btn-open-track-all");
     if (btnTrackAll) {
         btnTrackAll.addEventListener("click", () => {
-            pendingTrackId = "ALL"; // Berikan flag khusus untuk trigger mass tracking
+            pendingTrackId = "ALL";
             document.getElementById("modal-track").classList.remove("hidden");
             document.getElementById("modal-track").classList.add("flex");
         });
@@ -359,6 +399,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         showToast("Menyimpan data alumni...", "loader");
         await createAlumni(newData);
+        addActivity(`Data alumni baru ditambahkan: ${newData.name}`, "plus", "text-emerald-600", "bg-emerald-50");
         e.target.reset();
         modalAdd.classList.add("hidden"); modalAdd.classList.remove("flex");
         showToast("Alumni berhasil ditambahkan!", "check");
