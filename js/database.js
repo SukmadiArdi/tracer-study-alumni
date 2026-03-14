@@ -1,57 +1,80 @@
+// ===== IMPORT DATABASE CONNECTION =====
+
 import { db } from "./firebase.js";
 
-import {
 
-collection,
-addDoc,
-getDocs,
-deleteDoc,
-doc,
-updateDoc
+// ===== COLLECTION NAME =====
 
-} from
-
-"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const alumniCollection = collection(db,"alumni");
+const alumniCollection = db.collection("alumni");
 
 
-export async function getAlumni(){
+// ===== GET ALL ALUMNI =====
 
-const snapshot = await getDocs(alumniCollection);
+export async function getAlumni() {
 
-let data=[];
+  const snapshot = await alumniCollection.get();
 
-snapshot.forEach((d)=>{
+  const alumniList = [];
 
-data.push({
-id:d.id,
-...d.data()
-});
+  snapshot.forEach((doc) => {
 
-});
+    alumniList.push({
+      id: doc.id,
+      ...doc.data()
+    });
 
-return data;
+  });
+
+  return alumniList;
 
 }
 
 
-export async function addAlumni(data){
 
-await addDoc(alumniCollection,data);
+// ===== ADD NEW ALUMNI =====
+
+export async function addAlumni(data) {
+
+  await alumniCollection.add({
+    name: data.name,
+    nim: data.nim,
+    program: data.program,
+    year: data.year,
+    status: data.status || "Pending",
+    confidence: data.confidence || 0
+  });
 
 }
 
 
-export async function deleteAlumni(id){
 
-await deleteDoc(doc(db,"alumni",id));
+// ===== DELETE ALUMNI =====
+
+export async function deleteAlumni(id) {
+
+  await alumniCollection.doc(id).delete();
 
 }
 
 
-export async function updateAlumni(id,data){
 
-await updateDoc(doc(db,"alumni",id),data);
+// ===== UPDATE ALUMNI =====
+
+export async function updateAlumni(id, data) {
+
+  await alumniCollection.doc(id).update(data);
+
+}
+
+
+
+// ===== UPDATE STATUS =====
+
+export async function updateStatus(id, status, confidence) {
+
+  await alumniCollection.doc(id).update({
+    status: status,
+    confidence: confidence
+  });
 
 }
