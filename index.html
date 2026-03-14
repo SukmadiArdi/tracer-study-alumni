@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en" class="h-full">
+
 <head>
 
 <meta charset="UTF-8">
@@ -38,73 +39,117 @@ card_white:'#ffffff'
 
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
+<style>
+
+html,body{
+height:100%;
+font-family:'DM Sans',sans-serif;
+background:#f7f9fc;
+}
+
+.font-display{
+font-family:'Playfair Display',serif;
+}
+
+.table-row-hover:hover{
+background:#f0f4fa;
+}
+
+.sidebar-link:hover{
+background:rgba(255,255,255,.12);
+}
+
+.sidebar-link.active{
+background:rgba(255,255,255,.18);
+border-left:3px solid #fff;
+}
+
+</style>
+
 </head>
 
-
-<body class="h-full overflow-hidden">
-
+<body class="h-full bg-slate_surface text-navy-800 overflow-auto">
 
 <!-- LOGIN PAGE -->
 
-<div id="page-login" class="h-full flex items-center justify-center bg-slate-100">
+<div id="page-login" class="h-full w-full flex">
 
-<div class="bg-white p-10 rounded-xl shadow w-96">
+<div class="hidden lg:flex w-1/2 bg-gradient-to-br from-navy-600 via-navy-700 to-navy-900 items-center justify-center">
 
-<h1 class="text-2xl font-bold mb-6 text-center">
+<h2 class="text-white font-display text-3xl">
 Alumni Tracer Study
+</h2>
+
+</div>
+
+
+<div class="w-full lg:w-1/2 flex items-center justify-center p-10">
+
+<div class="w-full max-w-md">
+
+<h1 class="font-display text-3xl text-navy-800 mb-6">
+Welcome back
 </h1>
+
+<form onsubmit="return false;" class="space-y-4">
 
 <input id="login-user"
 placeholder="Username"
-class="w-full border p-3 rounded mb-3">
+class="w-full border border-navy-200 p-3 rounded-xl">
 
 <input id="login-pass"
 type="password"
 placeholder="Password"
-class="w-full border p-3 rounded mb-4">
+class="w-full border border-navy-200 p-3 rounded-xl">
 
 <button id="btn-login"
-class="w-full bg-blue-600 text-white p-3 rounded">
+class="w-full py-3 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-semibold">
+
 Sign In
+
 </button>
 
+</form>
+
+</div>
+
 </div>
 
 </div>
 
 
+<!-- APP SHELL -->
 
-<!-- DASHBOARD -->
-
-<div id="app-shell" class="hidden h-full">
+<div id="app-shell" class="hidden h-full w-full">
 
 <div class="flex h-full">
 
-
 <!-- SIDEBAR -->
 
-<aside class="w-64 bg-blue-900 text-white flex flex-col">
+<aside class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 flex flex-col">
 
-<div class="p-5 border-b border-white/10 font-bold">
+<div class="p-5 text-white font-semibold border-b border-white/10">
+
 Tracer Study
+
 </div>
 
-<nav class="flex-1 p-3 space-y-1">
+<nav class="flex-1 p-3 space-y-2">
 
 <button onclick="showPage('dashboard')"
-class="sidebar-link active w-full text-left px-3 py-2 rounded"
+class="sidebar-link active w-full text-left text-white px-3 py-2 rounded"
 data-nav="dashboard">
 Dashboard
 </button>
 
 <button onclick="showPage('alumni')"
-class="sidebar-link w-full text-left px-3 py-2 rounded"
+class="sidebar-link w-full text-left text-white px-3 py-2 rounded"
 data-nav="alumni">
 Alumni Management
 </button>
 
 <button onclick="showPage('verification')"
-class="sidebar-link w-full text-left px-3 py-2 rounded"
+class="sidebar-link w-full text-left text-white px-3 py-2 rounded"
 data-nav="verification">
 Manual Verification
 </button>
@@ -113,65 +158,73 @@ Manual Verification
 
 <div class="p-4 border-t border-white/10">
 
-<button onclick="logout()">Logout</button>
+<button onclick="logout()" class="text-white text-sm">
+Logout
+</button>
 
 </div>
 
 </aside>
 
 
-
 <!-- MAIN -->
 
-<main class="flex-1 overflow-auto">
+<main class="flex-1 overflow-y-auto">
 
 
 <header class="bg-white border-b p-4">
 
-<h2 id="page-title" class="font-bold text-lg">
+<h2 id="page-title" class="font-semibold text-navy-700">
 Dashboard
 </h2>
 
 </header>
 
 
-
-<!-- DASHBOARD PAGE -->
+<!-- DASHBOARD -->
 
 <section id="page-dashboard" class="p-6">
 
-<h3 class="font-semibold mb-3">
-System Overview
-</h3>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-<p class="text-gray-500">
-Alumni tracking statistics dashboard.
-</p>
+<div class="bg-white p-5 rounded-xl border">
+<div class="text-2xl font-bold">8412</div>
+<div class="text-sm text-navy-400">Total Alumni</div>
+</div>
+
+<div class="bg-white p-5 rounded-xl border">
+<div class="text-2xl font-bold">6561</div>
+<div class="text-sm text-navy-400">Identified</div>
+</div>
+
+<div class="bg-white p-5 rounded-xl border">
+<div class="text-2xl font-bold">1204</div>
+<div class="text-sm text-navy-400">Pending</div>
+</div>
+
+<div class="bg-white p-5 rounded-xl border">
+<div class="text-2xl font-bold">647</div>
+<div class="text-sm text-navy-400">Not Found</div>
+</div>
+
+</div>
 
 </section>
-
 
 
 <!-- ALUMNI PAGE -->
 
 <section id="page-alumni" class="p-6 hidden">
 
-
-<div class="flex justify-between mb-4">
-
-<button onclick="openModal()"
-class="bg-blue-600 text-white px-4 py-2 rounded">
+<button onclick="openModal()" class="mb-4 bg-navy-600 text-white px-4 py-2 rounded">
 Add Alumni
 </button>
 
-</div>
+<table class="w-full bg-white rounded-xl border text-sm">
 
+<thead>
 
-<table class="w-full text-sm bg-white rounded shadow">
-
-<thead class="bg-gray-100">
-
-<tr>
+<tr class="bg-navy-50">
 
 <th class="p-3 text-left">Name</th>
 <th class="p-3 text-left">NIM</th>
@@ -185,14 +238,11 @@ Add Alumni
 
 </thead>
 
-<tbody id="alumni-table-body">
-
-</tbody>
+<tbody id="alumni-table-body"></tbody>
 
 </table>
 
 </section>
-
 
 
 <!-- VERIFICATION -->
@@ -203,6 +253,7 @@ Add Alumni
 
 </section>
 
+
 </main>
 
 </div>
@@ -210,17 +261,14 @@ Add Alumni
 </div>
 
 
-
-<!-- ADD MODAL -->
+<!-- MODAL -->
 
 <div id="modal-add"
 class="fixed inset-0 hidden items-center justify-center bg-black/40">
 
 <div class="bg-white p-6 rounded-xl w-96">
 
-<h3 class="font-semibold mb-4">
-Add Alumni
-</h3>
+<h3 class="font-semibold mb-4">Add Alumni</h3>
 
 <input id="add-name"
 placeholder="Name"
@@ -238,14 +286,14 @@ class="border p-2 w-full mb-2">
 placeholder="Year"
 class="border p-2 w-full mb-4">
 
-
 <div class="flex justify-end gap-2">
 
 <button onclick="closeModal()">Cancel</button>
 
-<button onclick="saveAlumni()"
-class="bg-blue-600 text-white px-3 py-2 rounded">
+<button onclick="saveAlumni()" class="bg-navy-600 text-white px-3 py-2 rounded">
+
 Save
+
 </button>
 
 </div>
@@ -256,39 +304,125 @@ Save
 
 
 
-<script type="module">
+<script>
 
-import { getAlumni, addAlumniDB, deleteAlumniDB, updateAlumniDB } from "./js/database.js";
-import { calculateScore, getStatus } from "./js/tracking.js";
+/* SAMPLE DATA */
 
-let alumniData = [];
+let alumniData=[
+{name:'Rina Kartika', nim:'19103001', program:'Computer Science', year:2023, status:'Identified', confidence:96},
+{name:'Budi Santoso', nim:'19103045', program:'Information Systems', year:2023, status:'Identified', confidence:89},
+{name:'Dewi Lestari', nim:'20201012', program:'Business Administration', year:2024, status:'Pending', confidence:62}
+];
 
 
-/* LOAD DATA FROM FIREBASE */
+/* LOGIN */
 
-async function init(){
+document.getElementById("btn-login").onclick=function(){
 
-alumniData = await getAlumni();
+document.getElementById("page-login").classList.add("hidden");
+
+document.getElementById("app-shell").classList.remove("hidden");
 
 renderAlumniTable();
 
-renderVerification();
+lucide.createIcons();
 
 }
 
-init();
+
+/* NAVIGATION */
+
+function showPage(page){
+
+document.querySelectorAll("[id^='page-']").forEach(p=>{
+
+if(p.id!=="page-login") p.classList.add("hidden");
+
+});
+
+document.getElementById("page-"+page).classList.remove("hidden");
+
+}
 
 
-/* SAVE ALUMNI */
+/* RENDER TABLE */
 
-window.saveAlumni = async function(){
+function renderAlumniTable(){
+
+const tbody=document.getElementById("alumni-table-body");
+
+tbody.innerHTML="";
+
+alumniData.forEach((a,i)=>{
+
+const tr=document.createElement("tr");
+
+tr.className="table-row-hover";
+
+tr.innerHTML=`
+
+<td class="p-3">${a.name}</td>
+<td class="p-3">${a.nim}</td>
+<td class="p-3">${a.program}</td>
+<td class="p-3">${a.year}</td>
+<td class="p-3">${a.status}</td>
+<td class="p-3">${a.confidence}%</td>
+
+<td class="p-3 text-right">
+
+<button onclick="deleteAlumni(${i})"
+class="text-red-500">
+Delete
+</button>
+
+</td>
+
+`;
+
+tbody.appendChild(tr);
+
+});
+
+}
+
+
+/* DELETE */
+
+function deleteAlumni(i){
+
+alumniData.splice(i,1);
+
+renderAlumniTable();
+
+}
+
+
+/* MODAL */
+
+function openModal(){
+
+document.getElementById("modal-add").classList.remove("hidden");
+document.getElementById("modal-add").classList.add("flex");
+
+}
+
+function closeModal(){
+
+document.getElementById("modal-add").classList.add("hidden");
+
+}
+
+
+/* ADD */
+
+function saveAlumni(){
 
 const name=document.getElementById("add-name").value;
 const nim=document.getElementById("add-nim").value;
 const program=document.getElementById("add-program").value;
 const year=document.getElementById("add-year").value;
 
-await addAlumniDB({
+alumniData.push({
 
 name,
 nim,
@@ -299,47 +433,13 @@ confidence:0
 
 });
 
-location.reload();
+closeModal();
 
-}
-
-
-/* DELETE */
-
-window.confirmDelete = async function(idx){
-
-const id = alumniData[idx].id;
-
-await deleteAlumniDB(id);
-
-location.reload();
-
-}
-
-
-/* TRACK */
-
-window.trackAlumni = async function(idx){
-
-const alumni = alumniData[idx];
-
-const score = calculateScore(alumni);
-
-const status = getStatus(score);
-
-await updateAlumniDB(alumni.id,{
-
-confidence:score,
-status:status
-
-});
-
-location.reload();
+renderAlumniTable();
 
 }
 
 </script>
-
 
 </body>
 </html>
