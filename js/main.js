@@ -199,7 +199,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- Login & Logout ---
-    document.getElementById("btn-login").addEventListener("click", () => {
+    const loginForm = document.getElementById("login-form");
+    const loginHandler = () => {
         const user = document.getElementById("login-user").value;
         const pass = document.getElementById("login-pass").value;
         
@@ -210,7 +211,13 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             alert("Username atau Password salah! (Gunakan: admin / admin123)");
         }
+    };
+
+    loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        loginHandler();
     });
+    document.getElementById("btn-login").addEventListener("click", loginHandler);
 
     document.getElementById("btn-logout").addEventListener("click", () => {
         document.getElementById("app-shell").classList.add("hidden");
