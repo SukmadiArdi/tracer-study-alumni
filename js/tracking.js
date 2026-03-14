@@ -2,7 +2,7 @@ export function calculateScore(alumni){
 
 let score = 0;
 
-if(alumni.program === "Informatika")
+if(alumni.program.includes("Computer"))
 score += 30;
 
 if(Math.random() > 0.5)
@@ -19,12 +19,13 @@ return score;
 export function getStatus(score){
 
 if(score >= 80)
+
 return "Identified";
 
-else if(score >= 50)
+if(score >= 50)
+
 return "Pending";
 
-else
 return "Not Found";
 
 }

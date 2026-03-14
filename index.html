@@ -1,125 +1,167 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tracer Study Alumni</title>
+<script type="module">
 
-<script src="https://cdn.tailwindcss.com"></script>
+import { loadAlumni, addAlumniDB, deleteAlumniDB, updateAlumniDB } from "./js/database.js";
+import { calculateScore, getStatus } from "./js/tracking.js";
 
-</head>
+let alumniData = [];
 
-<body class="bg-gray-100 font-sans">
+/* LOAD DATA FROM FIREBASE */
 
-<!-- LOGIN PAGE -->
+async function init(){
 
-<div id="loginPage" class="flex items-center justify-center h-screen">
+alumniData = await loadAlumni();
 
-<div class="bg-white p-8 rounded-lg shadow-md w-96">
+renderAlumniTable();
 
-<h1 class="text-2xl font-bold mb-4 text-center">
-Tracer Study Admin
-</h1>
+}
 
-<input id="username"
-placeholder="Username"
-class="w-full p-2 border mb-3 rounded"
-/>
+init();
 
-<input id="password"
-type="password"
-placeholder="Password"
-class="w-full p-2 border mb-3 rounded"
-/>
 
-<button onclick="login()"
-class="w-full bg-blue-600 text-white p-2 rounded">
-Login
+/* RENDER TABLE */
+
+window.renderAlumniTable = function(){
+
+const tbody = document.getElementById('alumni-table-body');
+
+tbody.innerHTML = '';
+
+alumniData.forEach((a,i)=>{
+
+const statusColors = {
+
+Identified:'bg-emerald-50 text-emerald-700',
+
+Pending:'bg-amber-50 text-amber-700',
+
+"Not Found":'bg-red-50 text-red-600'
+
+};
+
+const confColor = a.confidence >= 80 ? 'text-emerald-600'
+: a.confidence >= 50 ? 'text-amber-600'
+: 'text-red-500';
+
+const confBg = a.confidence >= 80 ? 'bg-emerald-500'
+: a.confidence >= 50 ? 'bg-amber-500'
+: 'bg-red-400';
+
+const tr = document.createElement('tr');
+
+tr.innerHTML = `
+
+<td class="px-5 py-3.5">${a.name}</td>
+<td class="px-5 py-3.5">${a.nim}</td>
+<td class="px-5 py-3.5">${a.program}</td>
+<td class="px-5 py-3.5">${a.year}</td>
+
+<td class="px-5 py-3.5">
+<span class="text-xs px-2 py-1 rounded-full ${statusColors[a.status]}">
+${a.status}
+</span>
+</td>
+
+<td class="px-5 py-3.5">
+
+<div class="flex items-center gap-2">
+
+<div class="w-16 h-1.5 bg-navy-100 rounded-full overflow-hidden">
+
+<div class="h-full ${confBg}" style="width:${a.confidence}%"></div>
+
+</div>
+
+<span class="${confColor}">${a.confidence}%</span>
+
+</div>
+
+</td>
+
+<td class="px-5 py-3.5 text-right">
+
+<button onclick="trackAlumni(${i})"
+class="text-blue-500 mr-2">
+Track
 </button>
 
-</div>
-</div>
-
-
-<!-- DASHBOARD -->
-
-<div id="dashboardPage" class="hidden p-6">
-
-<h1 class="text-2xl font-bold mb-4">
-Dashboard Alumni
-</h1>
-
-<div class="grid grid-cols-3 gap-4 mb-6">
-
-<div class="bg-white p-4 shadow rounded">
-<h2>Total Alumni</h2>
-<p id="totalAlumni" class="text-2xl font-bold">0</p>
-</div>
-
-<div class="bg-white p-4 shadow rounded">
-<h2>Identified</h2>
-<p id="identifiedAlumni" class="text-2xl font-bold text-green-600">0</p>
-</div>
-
-<div class="bg-white p-4 shadow rounded">
-<h2>Pending</h2>
-<p id="pendingAlumni" class="text-2xl font-bold text-yellow-600">0</p>
-</div>
-
-</div>
-
-
-<!-- ADD ALUMNI -->
-
-<div class="bg-white p-4 rounded shadow mb-6">
-
-<h2 class="font-bold mb-2">Add Alumni</h2>
-
-<input id="name" placeholder="Name" class="border p-2 mr-2">
-<input id="nim" placeholder="NIM" class="border p-2 mr-2">
-<input id="program" placeholder="Program" class="border p-2 mr-2">
-<input id="year" placeholder="Year" class="border p-2 mr-2">
-
-<button onclick="addAlumni()"
-class="bg-green-600 text-white p-2 rounded">
-Add
+<button onclick="deleteAlumni(${i})"
+class="text-red-500">
+Delete
 </button>
 
-</div>
+</td>
+
+`;
+
+tbody.appendChild(tr);
+
+});
+
+lucide.createIcons();
+
+}
 
 
-<!-- ALUMNI TABLE -->
+/* ADD ALUMNI */
 
-<div class="bg-white p-4 rounded shadow">
+window.saveAlumni = async function(){
 
-<h2 class="font-bold mb-2">Alumni List</h2>
+const name = document.getElementById("add-name").value;
 
-<table class="w-full">
+const nim = document.getElementById("add-nim").value;
 
-<thead>
-<tr class="border-b">
+const program = document.getElementById("add-program").value;
 
-<th>Name</th>
-<th>NIM</th>
-<th>Program</th>
-<th>Year</th>
-<th>Status</th>
-<th>Score</th>
-<th>Action</th>
+const year = document.getElementById("add-year").value;
 
-</tr>
-</thead>
+await addAlumniDB({
 
-<tbody id="alumniTable"></tbody>
+name,
+nim,
+program,
+year,
+status:"Pending",
+confidence:0
 
-</table>
+});
 
-</div>
+location.reload();
 
-</div>
+}
 
 
-<script type="module" src="./js/app.js"></script>
+/* DELETE */
 
-</body>
-</html>
+window.deleteAlumni = async function(i){
+
+const id = alumniData[i].id;
+
+await deleteAlumniDB(id);
+
+location.reload();
+
+}
+
+
+/* TRACK */
+
+window.trackAlumni = async function(i){
+
+const alumni = alumniData[i];
+
+const score = calculateScore(alumni);
+
+const status = getStatus(score);
+
+await updateAlumniDB(alumni.id,{
+
+confidence:score,
+status:status
+
+});
+
+location.reload();
+
+}
+
+</script>
