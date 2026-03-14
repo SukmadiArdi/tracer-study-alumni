@@ -8,51 +8,61 @@ let pendingTrackId = null;
 // ===== 1. INISIALISASI & LOAD DATA =====
 async function loadData() {
     currentAlumniData = await getAlumni();
-    updateFilterYearsOptions(); // Set option tahun filter secara dinamis
+    updateFilterYearsOptions(); 
     renderAlumniTable();
     renderVerification();
     updateDashboard(currentAlumniData);
     if (window.lucide) lucide.createIcons();
 }
 
-// ===== FILTER DINAMIS =====
+// ===== FILTER DINAMIS & SEARCH =====
 function updateFilterYearsOptions() {
     const filterYear = document.getElementById("filter-year");
     if(!filterYear) return;
     
-    // Ambil tahun yang unik dari DB, lalu urutkan dari yang terbaru
     const uniqueYears = [...new Set(currentAlumniData.map(a => a.year))].filter(y => y).sort((a,b)=>b-a);
     const currentVal = filterYear.value;
     
     filterYear.innerHTML = '<option value="All">All Years</option>' + 
                            uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
     
-    // Kembalikan ke value yang sedang dipilih user jika masih ada
     filterYear.value = uniqueYears.includes(parseInt(currentVal)) ? currentVal : "All";
 }
 
-// Tambahkan Event Listener ke semua elemen filter
 document.getElementById("filter-program").addEventListener("change", renderAlumniTable);
 document.getElementById("filter-year").addEventListener("change", renderAlumniTable);
 document.getElementById("filter-status").addEventListener("change", renderAlumniTable);
 
+// Event Listener untuk Search Input
+const searchInput = document.getElementById("search-alumni");
+if(searchInput) {
+    searchInput.addEventListener("input", renderAlumniTable);
+}
 
-// ===== 2. RENDER TABEL ALUMNI (DENGAN FILTERING) =====
+// ===== 2. RENDER TABEL ALUMNI =====
 function renderAlumniTable() {
     const tbody = document.getElementById("alumni-table-body");
     const countText = document.getElementById("table-count-text");
     if (!tbody) return;
     
-    // Ambil Nilai Filter Saat Ini
     const fProg = document.getElementById("filter-program").value;
     const fYear = document.getElementById("filter-year").value;
     const fStat = document.getElementById("filter-status").value;
+    const searchVal = document.getElementById("search-alumni") ? document.getElementById("search-alumni").value.toLowerCase() : "";
 
-    // Terapkan Filter
     const filteredData = currentAlumniData.filter(a => {
+        // Cek Filter Dropdown
         if (fProg !== "All" && a.program !== fProg) return false;
         if (fYear !== "All" && a.year.toString() !== fYear) return false;
         if (fStat !== "All" && a.status !== fStat) return false;
+        
+        // Cek Search Input (Berdasarkan Nama atau NIM)
+        if (searchVal) {
+            const matchName = a.name.toLowerCase().includes(searchVal);
+            const matchNim = a.nim.toLowerCase().includes(searchVal);
+            if (!matchName && !matchNim) return false;
+        }
+        
         return true;
     });
 
@@ -60,7 +70,7 @@ function renderAlumniTable() {
     if(countText) countText.textContent = `Showing ${filteredData.length} of ${currentAlumniData.length} total alumni`;
 
     if(filteredData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-navy-400">Tidak ada data yang sesuai filter</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-navy-400">Tidak ada data yang sesuai filter/pencarian</td></tr>`;
         return;
     }
 

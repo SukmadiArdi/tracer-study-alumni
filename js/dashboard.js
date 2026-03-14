@@ -1,14 +1,17 @@
-// Variable lokal untuk menyimpan log histori aksi
-let activities = [
+// Mengambil log lama dari localStorage (atau buat baru jika kosong)
+let activities = JSON.parse(localStorage.getItem('alumniActivities')) || [
     { msg: "Sistem berhasil dimuat", time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), icon: "check", color: "text-emerald-600", bg: "bg-emerald-50" }
 ];
 
 export function addActivity(msg, icon="info", color="text-blue-600", bg="bg-blue-50") {
     const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    // Masukkan log ke paling atas array
+    // Masukkan log baru ke urutan pertama
     activities.unshift({ msg, time, icon, color, bg });
-    // Batasi log maksimal 5 item agar UI rapi
+    // Batasi array hanya 5 log terbaru
     if(activities.length > 5) activities.pop();
+    
+    // Simpan ke localStorage agar tidak hilang saat reload
+    localStorage.setItem('alumniActivities', JSON.stringify(activities));
     renderActivities();
 }
 
@@ -84,7 +87,6 @@ export function updateChart(alumniData) {
     const container = document.getElementById("chart-container");
     if(!container) return;
 
-    // Kelompokkan data jumlah alumni berdasarkan tahun
     const yearCounts = {};
     alumniData.forEach(a => {
         const y = a.year || "N/A";
@@ -97,19 +99,18 @@ export function updateChart(alumniData) {
         return;
     }
 
-    // Cari nilai terbanyak untuk men-skalakan tinggi batang grafik (Max 100%)
     const max = Math.max(...Object.values(yearCounts));
     const colors = ['bg-navy-200', 'bg-navy-300', 'bg-navy-400', 'bg-navy-500', 'bg-navy-600', 'bg-navy-700'];
     let html = '';
 
     years.forEach((y, idx) => {
         const count = yearCounts[y];
-        // Minimal height batang adalah 10% agar tetap terlihat
         const heightPct = Math.max((count / max) * 100, 10); 
         const color = colors[Math.min(idx, colors.length - 1)];
 
+        // FIX: Tambahkan 'h-full' dan 'justify-end' agar % height bekerja di parent flex
         html += `
-        <div class="flex-1 flex flex-col items-center gap-1">
+        <div class="flex-1 flex flex-col items-center justify-end gap-1 h-full">
             <div class="w-full ${color} rounded-t-lg relative group transition-all duration-500" style="height:${heightPct}%">
                 <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-navy-700 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
                     ${count} Alumni
@@ -127,5 +128,5 @@ export function updateDashboard(alumniData) {
   updateDashboardCards(stats);
   updateProgressRing(stats);
   updateChart(alumniData);
-  renderActivities();
+  renderActivities(); // Pastikan render activity dipanggil saat dashboard diupdate
 }
