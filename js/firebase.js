@@ -1,7 +1,8 @@
-// ===== FIREBASE CONFIGURATION =====
-// Ganti nilai di bawah ini dengan config dari Firebase Console
+// Import fungsi-fungsi inti dari Firebase SDK versi 10
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Konfigurasi Firebase Anda (Sesuai dengan project tracer-study-alumni-3c24a)
 const firebaseConfig = {
   apiKey: "AIzaSyDbObyn9f58StGXlo11l3WvjbZA5MaW61U",
   authDomain: "tracer-study-alumni-3c24a.firebaseapp.com",
@@ -12,17 +13,11 @@ const firebaseConfig = {
   measurementId: "G-K3N9DNJJQ6"
 };
 
+// Inisialisasi Firebase App
+const app = initializeApp(firebaseConfig);
 
-// ===== INITIALIZE FIREBASE =====
+// Inisialisasi Cloud Firestore dan simpan referensinya di variabel 'db'
+const db = getFirestore(app);
 
-firebase.initializeApp(firebaseConfig);
-
-
-// ===== INITIALIZE FIRESTORE DATABASE =====
-
-const db = firebase.firestore();
-
-
-// ===== EXPORT DATABASE =====
-
+// Ekspor 'db' agar bisa digunakan oleh file JavaScript lainnya (seperti alumni.js)
 export { db };

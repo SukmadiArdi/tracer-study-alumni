@@ -1,350 +1,354 @@
 <!doctype html>
 <html lang="en" class="h-full">
-
-<head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Alumni Tracer Study System</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-
-<script>
-tailwind.config = {
-theme:{
-extend:{
-colors:{
-navy:{
-50:'#f0f4fa',
-100:'#dce4f2',
-200:'#bccbe7',
-300:'#8da8d6',
-400:'#5e82c1',
-500:'#3d63aa',
-600:'#1e3a6e',
-700:'#162d56',
-800:'#0f2041',
-900:'#0a1628'
-},
-slate_surface:'#f7f9fc'
-}
-}
-}
-}
-</script>
-
-<style>
-
-*{box-sizing:border-box;margin:0;padding:0}
-
-body{
-font-family:'DM Sans',sans-serif;
-background:#f7f9fc;
-}
-
-.sidebar-link{
-transition:.15s;
-}
-
-.sidebar-link.active{
-background:rgba(255,255,255,.15);
-}
-
-.table-row-hover:hover{
-background:#f0f4fa;
-}
-
-</style>
-
-</head>
-
-<body class="h-full text-navy-800">
-
-<!-- LOGIN PAGE -->
-
-<div id="page-login" class="h-full flex">
-
-<div class="w-1/2 bg-gradient-to-br from-navy-600 to-navy-900 flex flex-col items-center justify-center text-white">
-
-<h2 class="text-3xl font-display mb-4">
-Alumni Tracer Study
-</h2>
-
-<p class="text-white/70 text-sm">
-Connecting graduates with their alma mater
-</p>
-
-</div>
-
-<div class="w-1/2 flex items-center justify-center">
-
-<div class="w-96">
-
-<h1 class="text-3xl font-display mb-2">
-Welcome back
-</h1>
-
-<p class="text-sm text-navy-400 mb-6">
-Sign in to access the dashboard
-</p>
-
-<input id="login-user"
-class="w-full mb-3 p-3 border rounded-lg"
-placeholder="admin">
-
-<input id="login-pass"
-type="password"
-class="w-full mb-4 p-3 border rounded-lg"
-placeholder="password">
-
-<button id="btn-login"
-class="w-full bg-navy-600 text-white py-3 rounded-xl">
-
-Sign In
-
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-<!-- APP -->
-
-<div id="app-shell" class="hidden h-full">
-
-<div class="flex h-full">
-
-<!-- SIDEBAR -->
-
-<aside class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 text-white flex flex-col">
-
-<div class="p-5 font-semibold">
-Tracer Study
-</div>
-
-<nav class="flex-1 px-3">
-
-<button onclick="showPage('dashboard')" class="sidebar-link active w-full text-left px-3 py-2 rounded">
-Dashboard
-</button>
-
-<button onclick="showPage('alumni')" class="sidebar-link w-full text-left px-3 py-2 rounded">
-Alumni Management
-</button>
-
-<button onclick="showPage('verification')" class="sidebar-link w-full text-left px-3 py-2 rounded">
-Manual Verification
-</button>
-
-</nav>
-
-<div class="p-4 border-t border-white/10">
-
-<button onclick="logout()">
-Logout
-</button>
-
-</div>
-
-</aside>
-
-<!-- MAIN -->
-
-<main class="flex-1 overflow-auto">
-
-<header class="bg-white border-b p-4">
-
-<h2 id="page-title" class="font-semibold">
-Dashboard
-</h2>
-
-</header>
-
-<!-- DASHBOARD -->
-
-<section id="page-dashboard" class="p-6">
-
-<p class="text-sm text-navy-400">
-Overview of alumni tracking progress
-</p>
-
-</section>
-
-<!-- ALUMNI -->
-
-<section id="page-alumni" class="hidden p-6">
-
-<table class="w-full text-sm">
-
-<thead>
-
-<tr class="text-navy-500 text-xs uppercase">
-
-<th class="px-4 py-2">Name</th>
-<th class="px-4 py-2">NIM</th>
-<th class="px-4 py-2">Program</th>
-<th class="px-4 py-2">Year</th>
-<th class="px-4 py-2">Status</th>
-<th class="px-4 py-2">Confidence</th>
-
-</tr>
-
-</thead>
-
-<tbody id="alumni-table-body"></tbody>
-
-</table>
-
-</section>
-
-<!-- VERIFICATION -->
-
-<section id="page-verification" class="hidden p-6">
-
-<div id="verification-list"></div>
-
-</section>
-
-</main>
-
-</div>
-
-</div>
-
-<script>
-
-let alumniData=[];
-let verificationData=[];
-
-function showPage(page){
-
-document.querySelectorAll("[id^='page-']").forEach(p=>{
-
-if(p.id!=="page-login")p.classList.add("hidden")
-
-})
-
-document.getElementById("page-"+page).classList.remove("hidden")
-
-}
-
-document.getElementById("btn-login").onclick=function(){
-
-document.getElementById("page-login").classList.add("hidden")
-document.getElementById("app-shell").classList.remove("hidden")
-
-showPage("dashboard")
-
-}
-
-function logout(){
-
-document.getElementById("app-shell").classList.add("hidden")
-document.getElementById("page-login").classList.remove("hidden")
-
-}
-
-</script>
-
-<!-- FIREBASE INTEGRATION -->
-
-<script type="module">
-
-import { getAlumni } from "./js/database.js"
-
-async function loadFirebaseData(){
-
-const data=await getAlumni()
-
-alumniData.length=0
-verificationData.length=0
-
-data.forEach(a=>{
-
-alumniData.push(a)
-
-if(a.status==="Pending"){
-
-verificationData.push(a)
-
-}
-
-})
-
-renderAlumniTable()
-renderVerification()
-
-}
-
-window.renderAlumniTable=function(){
-
-const tbody=document.getElementById("alumni-table-body")
-
-tbody.innerHTML=""
-
-alumniData.forEach(a=>{
-
-const tr=document.createElement("tr")
-
-tr.className="table-row-hover"
-
-tr.innerHTML=`
-
-<td class="px-4 py-2">${a.name}</td>
-<td class="px-4 py-2">${a.nim}</td>
-<td class="px-4 py-2">${a.program}</td>
-<td class="px-4 py-2">${a.year}</td>
-<td class="px-4 py-2">${a.status}</td>
-<td class="px-4 py-2">${a.confidence}%</td>
-
-`
-
-tbody.appendChild(tr)
-
-})
-
-}
-
-window.renderVerification=function(){
-
-const container=document.getElementById("verification-list")
-
-container.innerHTML=""
-
-verificationData.forEach(a=>{
-
-container.innerHTML+=`
-
-<div class="bg-white p-4 border rounded-xl mb-3">
-
-<b>${a.name}</b>
-
-<div class="text-xs text-navy-400">
-
-${a.program} • ${a.year}
-
-</div>
-
-</div>
-
-`
-
-})
-
-}
-
-loadFirebaseData()
-
-</script>
-
-</body>
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alumni Tracer Study System</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { 50:'#f0f4fa', 100:'#dce4f2', 200:'#bccbe7', 300:'#8da8d6', 400:'#5e82c1', 500:'#3d63aa', 600:'#1e3a6e', 700:'#162d56', 800:'#0f2041', 900:'#0a1628' },
+            slate_surface: '#f7f9fc',
+            card_white: '#ffffff',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'DM Sans', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes scaleIn { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
+    @keyframes slideRight { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+    .anim-fade-up { animation: fadeUp .5s ease both; }
+    .anim-scale-in { animation: scaleIn .4s ease both; }
+    .anim-slide-right { animation: slideRight .4s ease both; }
+    .anim-delay-1 { animation-delay: .08s; }
+    .anim-delay-2 { animation-delay: .16s; }
+    .anim-delay-3 { animation-delay: .24s; }
+    .anim-delay-4 { animation-delay: .32s; }
+    .anim-delay-5 { animation-delay: .4s; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #bccbe7; border-radius: 3px; }
+
+    /* Progress ring */
+    .progress-ring-circle { transition: stroke-dashoffset 0.6s ease; transform: rotate(-90deg); transform-origin: 50% 50%; }
+
+    /* Table row hover */
+    .table-row-hover { transition: background .15s ease; }
+    .table-row-hover:hover { background: #f0f4fa; }
+
+    /* Sidebar link */
+    .sidebar-link { transition: all .15s ease; }
+    .sidebar-link:hover { background: rgba(255,255,255,.12); }
+    .sidebar-link.active { background: rgba(255,255,255,.18); border-left: 3px solid #fff; }
+
+    /* Tooltip */
+    .badge-pulse { animation: pulse-dot 2s ease infinite; }
+
+    /* Modal overlay */
+    .modal-overlay { background: rgba(10,22,40,.45); backdrop-filter: blur(4px); }
+
+    /* Custom checkbox */
+    .custom-check { accent-color: #1e3a6e; }
+  </style>
+ </head>
+ <body class="h-full bg-slate_surface text-navy-800 overflow-auto">
+
+  <div id="page-login" class="h-full w-full flex">
+   <div class="hidden lg:flex w-1/2 bg-gradient-to-br from-navy-600 via-navy-700 to-navy-900 relative overflow-hidden flex-col justify-center items-center p-12">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10">
+     <div class="absolute top-10 left-10 w-64 h-64 rounded-full border-2 border-white"></div>
+     <div class="absolute bottom-20 right-10 w-48 h-48 rounded-full border border-white"></div>
+     <div class="absolute top-1/3 right-1/4 w-32 h-32 rounded-full bg-white/10"></div>
+     <div class="absolute bottom-1/3 left-1/4 w-20 h-20 rounded-full bg-white/5"></div>
+    </div>
+    <div class="relative z-10 anim-scale-in">
+     <svg width="280" height="240" viewbox="0 0 280 240" fill="none">
+        <circle cx="140" cy="120" r="36" fill="rgba(255,255,255,.15)" stroke="white" stroke-width="2" /> 
+        <text x="140" y="110" text-anchor="middle" fill="white" font-size="11" font-family="DM Sans" font-weight="600">ALUMNI</text> 
+        <text x="140" y="126" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="9" font-family="DM Sans">NETWORK</text> 
+        <circle cx="50" cy="50" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> 
+        <text x="50" y="54" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">CS</text> 
+        <line x1="68" y1="62" x2="108" y2="98" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
+        <circle cx="230" cy="45" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> 
+        <text x="230" y="49" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">ENG</text> 
+        <line x1="212" y1="57" x2="172" y2="98" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
+        <circle cx="40" cy="180" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> 
+        <text x="40" y="184" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">BIZ</text> 
+        <line x1="58" y1="172" x2="110" y2="142" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
+        <circle cx="245" cy="175" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> 
+        <text x="245" y="179" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">MED</text> 
+        <line x1="227" y1="167" x2="172" y2="140" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
+        <circle cx="140" cy="220" r="14" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.4)" stroke-width="1" /> 
+        <text x="140" y="224" text-anchor="middle" fill="white" font-size="6" font-family="DM Sans">LAW</text> 
+        <line x1="140" y1="206" x2="140" y2="156" stroke="rgba(255,255,255,.2)" stroke-width="1" stroke-dasharray="4 3" /> 
+        <circle cx="100" cy="30" r="3" fill="rgba(255,255,255,.3)" class="badge-pulse" /> 
+        <circle cx="200" cy="200" r="3" fill="rgba(255,255,255,.3)" class="badge-pulse" style="animation-delay:.6s" /> 
+        <circle cx="260" cy="110" r="2.5" fill="rgba(255,255,255,.2)" class="badge-pulse" style="animation-delay:1.2s" />
+     </svg>
+    </div>
+    <div class="relative z-10 mt-10 text-center anim-fade-up anim-delay-2">
+     <h2 class="text-white font-display text-2xl mb-2" id="login-illustration-title">Alumni Tracer Study</h2>
+     <p class="text-white/60 text-sm max-w-xs">Connecting graduates with their alma mater. Track career outcomes and strengthen the alumni network.</p>
+    </div>
+   </div>
+   
+   <div class="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16">
+    <div class="w-full max-w-md anim-fade-up">
+     <div class="flex items-center gap-3 mb-10">
+      <div class="w-11 h-11 rounded-xl bg-navy-600 flex items-center justify-center">
+       <svg width="22" height="22" viewbox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" /><path d="M6 12v5c0 1 4 3 6 3s6-2 6-3v-5" />
+       </svg>
+      </div>
+      <div>
+        <span class="font-semibold text-navy-700 text-lg" id="login-uni-name">Universitas Nusantara</span> 
+        <span class="block text-xs text-navy-400">Administration Portal</span>
+      </div>
+     </div>
+     <h1 class="font-display text-3xl text-navy-800 mb-1" id="login-welcome-text">Welcome back</h1>
+     <p class="text-navy-400 mb-8 text-sm">Sign in to access the Alumni Tracer dashboard</p>
+     <form id="login-form" class="space-y-5" onsubmit="return false;">
+      <div>
+        <label for="login-user" class="block text-sm font-medium text-navy-600 mb-1.5">Username</label>
+       <div class="relative">
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy-300"><i data-lucide="user" style="width:18px;height:18px;"></i></span> 
+        <input id="login-user" type="text" placeholder="admin" class="w-full pl-11 pr-4 py-3 rounded-xl border border-navy-200 bg-white focus:outline-none focus:ring-2 focus:ring-navy-400/40 focus:border-navy-400 text-sm transition">
+       </div>
+      </div>
+      <div>
+        <label for="login-pass" class="block text-sm font-medium text-navy-600 mb-1.5">Password</label>
+       <div class="relative">
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy-300"><i data-lucide="lock" style="width:18px;height:18px;"></i></span> 
+        <input id="login-pass" type="password" placeholder="admin123" class="w-full pl-11 pr-4 py-3 rounded-xl border border-navy-200 bg-white focus:outline-none focus:ring-2 focus:ring-navy-400/40 focus:border-navy-400 text-sm transition">
+       </div>
+      </div>
+      <div class="flex items-center justify-between text-sm">
+        <label class="flex items-center gap-2 cursor-pointer"> 
+            <input type="checkbox" class="custom-check rounded"> <span class="text-navy-500">Remember me</span> 
+        </label> 
+        <button type="button" class="text-navy-500 hover:text-navy-700 transition">Forgot password?</button>
+      </div>
+      <button type="button" id="btn-login" class="w-full py-3 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-semibold text-sm transition active:scale-[0.98] flex items-center justify-center gap-2"> 
+        <i data-lucide="log-in" style="width:18px;height:18px;"></i> Sign In 
+      </button>
+     </form>
+     <p class="text-center text-xs text-navy-300 mt-8">© 2026 Alumni Tracer Study System</p>
+    </div>
+   </div>
+  </div>
+
+  <div id="app-shell" class="h-full w-full hidden">
+   <div class="flex h-full w-full">
+    <aside id="sidebar" class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 flex flex-col shrink-0 transition-all duration-300 overflow-y-auto">
+     <div class="p-5 flex items-center gap-3 border-b border-white/10">
+      <div class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
+       <svg width="18" height="18" viewbox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" /><path d="M6 12v5c0 1 4 3 6 3s6-2 6-3v-5" />
+       </svg>
+      </div>
+      <div>
+        <span class="text-white font-semibold text-sm leading-tight block" id="sidebar-uni-name">Universitas Nusantara</span> 
+        <span class="text-white/40 text-[10px]">Tracer Study</span>
+      </div>
+     </div>
+     <nav class="flex-1 py-4 px-3 space-y-1" role="navigation">
+        <button id="nav-dashboard" class="sidebar-link active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> 
+            <i data-lucide="layout-dashboard" style="width:18px;height:18px;"></i> Dashboard 
+        </button> 
+        <button id="nav-alumni" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> 
+            <i data-lucide="users" style="width:18px;height:18px;"></i> Alumni Management 
+        </button> 
+        <button id="nav-verification" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> 
+            <i data-lucide="check-circle" style="width:18px;height:18px;"></i> Manual Verification <span id="verif-badge" class="ml-auto bg-amber-400 text-navy-900 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">0</span> 
+        </button>
+      <div class="pt-4 pb-2 px-3">
+        <span class="text-white/30 text-[10px] uppercase tracking-wider font-semibold">System</span>
+      </div>
+      <button class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> 
+        <i data-lucide="settings" style="width:18px;height:18px;"></i> Settings 
+      </button>
+     </nav>
+     <div class="p-4 border-t border-white/10 flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-xs font-semibold">AD</div>
+      <div class="flex-1 min-w-0">
+        <span class="text-white text-xs font-medium block truncate">Admin User</span> 
+        <span class="text-white/40 text-[10px]">Super Admin</span>
+      </div>
+      <button id="btn-logout" class="text-white/40 hover:text-white transition" title="Logout"> 
+        <i data-lucide="log-out" style="width:16px;height:16px;"></i> 
+      </button>
+     </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto" role="main">
+     <header class="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-navy-100 px-6 py-3 flex items-center justify-between">
+      <div>
+       <h2 class="font-semibold text-navy-800 text-lg" id="page-title">Dashboard</h2>
+       <p class="text-navy-400 text-xs" id="page-subtitle">Overview of alumni tracking progress</p>
+      </div>
+      <div class="flex items-center gap-3">
+       <div class="relative hidden sm:block">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-navy-300" style="width:16px;height:16px;"></i> 
+        <input type="text" placeholder="Search alumni..." class="pl-9 pr-4 py-2 text-sm rounded-lg border border-navy-200 bg-white focus:outline-none focus:ring-2 focus:ring-navy-300/40 w-56">
+       </div>
+       <button class="relative p-2 rounded-lg hover:bg-navy-50 transition text-navy-400"> 
+        <i data-lucide="bell" style="width:18px;height:18px;"></i> <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span> 
+       </button>
+      </div>
+     </header>
+
+     <section id="page-dashboard" class="p-6 space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up">
+        <div class="flex items-center justify-between mb-3">
+         <div class="w-10 h-10 rounded-xl bg-navy-50 flex items-center justify-center text-navy-500"><i data-lucide="users" style="width:20px;height:20px;"></i></div>
+        </div>
+        <div class="text-2xl font-bold text-navy-800" id="stat-total">0</div>
+        <div class="text-xs text-navy-400 mt-0.5">Total Alumni</div>
+       </div>
+       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up anim-delay-1">
+        <div class="flex items-center justify-between mb-3">
+         <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><i data-lucide="user-check" style="width:20px;height:20px;"></i></div>
+        </div>
+        <div class="text-2xl font-bold text-navy-800" id="stat-identified">0</div>
+        <div class="text-xs text-navy-400 mt-0.5">Identified Alumni</div>
+       </div>
+       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up anim-delay-2">
+        <div class="flex items-center justify-between mb-3">
+         <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600"><i data-lucide="alert-circle" style="width:20px;height:20px;"></i></div>
+        </div>
+        <div class="text-2xl font-bold text-navy-800" id="stat-pending">0</div>
+        <div class="text-xs text-navy-400 mt-0.5">Need Manual Verification</div>
+       </div>
+       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up anim-delay-3">
+        <div class="flex items-center justify-between mb-3">
+         <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500"><i data-lucide="user-x" style="width:20px;height:20px;"></i></div>
+        </div>
+        <div class="text-2xl font-bold text-navy-800" id="stat-notfound">0</div>
+        <div class="text-xs text-navy-400 mt-0.5">Not Found</div>
+       </div>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+       <div class="bg-white rounded-2xl p-6 border border-navy-100 anim-fade-up anim-delay-3">
+        <h3 class="font-semibold text-navy-700 text-sm mb-4">Tracking Progress</h3>
+        <div class="flex items-center justify-center">
+         <svg width="160" height="160" viewbox="0 0 160 160">
+            <circle cx="80" cy="80" r="64" fill="none" stroke="#dce4f2" stroke-width="12" /> 
+            <circle cx="80" cy="80" r="64" fill="none" stroke="#1e3a6e" stroke-width="12" stroke-linecap="round" class="progress-ring-circle" stroke-dasharray="402" stroke-dashoffset="402" id="progress-circle"/> 
+            <text x="80" y="74" text-anchor="middle" fill="#0f2041" font-size="28" font-weight="700" font-family="DM Sans" id="progress-percent">0%</text> 
+            <text x="80" y="94" text-anchor="middle" fill="#8da8d6" font-size="11" font-family="DM Sans">Identified</text>
+         </svg>
+        </div>
+       </div>
+      </div>
+     </section>
+
+     <section id="page-alumni" class="p-6 space-y-4 hidden">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+       <div class="flex items-center gap-2">
+        <select class="text-sm border border-navy-200 rounded-lg px-3 py-2 text-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-300/40"> 
+            <option>All Programs</option> 
+        </select>
+       </div>
+       <div class="flex items-center gap-2">
+        <button id="btn-open-add" class="flex items-center gap-1.5 px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm rounded-xl transition font-medium"> 
+            <i data-lucide="plus" style="width:16px;height:16px;"></i> Add Alumni 
+        </button>
+       </div>
+      </div>
+      
+      <div class="bg-white rounded-2xl border border-navy-100 overflow-hidden">
+       <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+         <thead>
+          <tr class="bg-navy-50/60 text-navy-500 text-xs uppercase tracking-wider">
+           <th class="text-left px-5 py-3 font-semibold">Name</th>
+           <th class="text-left px-5 py-3 font-semibold">NIM</th>
+           <th class="text-left px-5 py-3 font-semibold">Study Program</th>
+           <th class="text-left px-5 py-3 font-semibold">Grad Year</th>
+           <th class="text-left px-5 py-3 font-semibold">Status</th>
+           <th class="text-left px-5 py-3 font-semibold">Confidence</th>
+           <th class="text-right px-5 py-3 font-semibold">Actions</th>
+          </tr>
+         </thead>
+         <tbody id="alumni-table-body" class="divide-y divide-navy-100">
+             </tbody>
+        </table>
+       </div>
+      </div>
+     </section>
+
+     <section id="page-verification" class="p-6 space-y-4 hidden">
+      <div class="flex items-center justify-between">
+       <div>
+        <p class="text-navy-400 text-sm">Review and confirm profile matches for alumni that couldn't be automatically verified.</p>
+       </div>
+      </div>
+      <div id="verification-list" class="space-y-4">
+          </div>
+     </section>
+    </main>
+   </div>
+  </div>
+
+  <div id="modal-add" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+   <div class="bg-white rounded-2xl w-full max-w-lg mx-4 p-6 anim-scale-in">
+    <div class="flex items-center justify-between mb-5">
+     <h3 class="font-semibold text-navy-800 text-lg">Add New Alumni</h3>
+     <button id="btn-close-add" class="text-navy-300 hover:text-navy-600 transition"><i data-lucide="x" style="width:20px;height:20px;"></i></button>
+    </div>
+    <form id="form-add-alumni" class="space-y-4">
+     <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-navy-500 mb-1">Full Name</label> 
+        <input id="add-name" type="text" required class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40" placeholder="Enter full name">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-navy-500 mb-1">Student ID (NIM)</label> 
+        <input id="add-nim" type="text" required class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40" placeholder="e.g. 19103001">
+      </div>
+     </div>
+     <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-navy-500 mb-1">Study Program</label> 
+        <select id="add-program" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40"> 
+            <option value="Informatika">Informatika</option> 
+            <option value="Sistem Informasi">Sistem Informasi</option> 
+            <option value="Teknik Elektro">Teknik Elektro</option> 
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-navy-500 mb-1">Graduation Year</label> 
+        <input id="add-year" type="number" required class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40" placeholder="2023">
+      </div>
+     </div>
+     <div class="flex justify-end gap-2 pt-2">
+        <button type="button" id="btn-cancel-add" class="px-4 py-2.5 border border-navy-200 rounded-xl text-sm text-navy-600 hover:bg-navy-50 transition">Cancel</button> 
+        <button type="submit" class="px-5 py-2.5 bg-navy-600 hover:bg-navy-700 text-white rounded-xl text-sm font-medium transition">Save Alumni</button>
+     </div>
+    </form>
+   </div>
+  </div>
+
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
+
+  <script type="module" src="./main.js"></script>
+ </body>
 </html>

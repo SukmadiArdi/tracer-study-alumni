@@ -1,77 +1,77 @@
 import { db } from "./firebase.js";
-
 import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-collection,
-addDoc,
-getDocs,
-deleteDoc,
-doc,
-updateDoc
+// Referensi ke koleksi 'alumni' di Firestore
+const ALUMNI_COLLECTION = "alumni";
+const alumniRef = collection(db, ALUMNI_COLLECTION);
 
-} from
-"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-import { calculateScore, getStatus } from "./tracking.js";
-
-
-const alumniCollection = collection(db,"alumni");
-
-
-export async function createAlumni(data){
-
-await addDoc(alumniCollection,{
-
-name:data.name,
-nim:data.nim,
-program:data.program,
-year:data.year,
-status:"Pending",
-confidence:0
-
-});
-
+// ===== 1. MENGAMBIL SEMUA DATA ALUMNI (READ) =====
+export async function getAlumni() {
+  try {
+    const snapshot = await getDocs(alumniRef);
+    const alumniList = [];
+    
+    snapshot.forEach((docSnap) => {
+      alumniList.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      });
+    });
+    
+    return alumniList;
+  } catch (error) {
+    console.error("Error mengambil data alumni: ", error);
+    return []; // Kembalikan array kosong jika gagal agar UI tidak error
+  }
 }
 
-
-export async function getAlumni(){
-
-const snapshot = await getDocs(alumniCollection);
-
-let alumni = [];
-
-snapshot.forEach(doc => {
-
-alumni.push({
-id:doc.id,
-...doc.data()
-})
-
-});
-
-return alumni;
-
+// ===== 2. MENAMBAH DATA ALUMNI BARU (CREATE) =====
+export async function createAlumni(data) {
+  try {
+    const docRef = await addDoc(alumniRef, {
+      name: data.name,
+      nim: data.nim,
+      program: data.program,
+      year: parseInt(data.year), // Pastikan tahun disave sebagai angka
+      status: "Pending", // Status awal saat pertama kali ditambahkan
+      confidence: 0
+    });
+    
+    return docRef.id;
+  } catch (error) {
+    console.error("Error menambah alumni: ", error);
+    throw error;
+  }
 }
 
-
-export async function deleteAlumni(id){
-
-await deleteDoc(doc(db,"alumni",id));
-
+// ===== 3. MENGHAPUS DATA ALUMNI (DELETE) =====
+export async function deleteAlumni(id) {
+  try {
+    const alumniDocRef = doc(db, ALUMNI_COLLECTION, id);
+    await deleteDoc(alumniDocRef);
+  } catch (error) {
+    console.error("Error menghapus alumni: ", error);
+    throw error;
+  }
 }
 
-
-export async function trackAlumni(alumni){
-
-const score = calculateScore(alumni);
-
-const status = getStatus(score);
-
-await updateDoc(doc(db,"alumni",alumni.id),{
-
-confidence:score,
-status:status
-
-});
-
+// ===== 4. MENGUPDATE STATUS HASIL PELACAKAN (UPDATE) =====
+export async function updateStatus(id, status, confidence) {
+  try {
+    const alumniDocRef = doc(db, ALUMNI_COLLECTION, id);
+    await updateDoc(alumniDocRef, {
+      status: status,
+      confidence: confidence
+    });
+  } catch (error) {
+    console.error("Error mengupdate status alumni: ", error);
+    throw error;
+  }
 }
