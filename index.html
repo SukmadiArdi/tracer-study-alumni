@@ -351,29 +351,32 @@
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-              <i data-lucide="linkedin" class="w-6 h-6 text-blue-700 mx-auto mb-2"></i>
+              <div class="text-2xl mb-2">💼</div>
               <p id="count-linkedin" class="text-2xl font-bold text-gray-900">-</p>
               <p class="text-xs text-gray-500 mt-0.5">Punya LinkedIn</p>
             </div>
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-              <i data-lucide="mail" class="w-6 h-6 text-red-500 mx-auto mb-2"></i>
+              <div class="text-2xl mb-2">📧</div>
               <p id="count-email" class="text-2xl font-bold text-gray-900">-</p>
               <p class="text-xs text-gray-500 mt-0.5">Punya Email</p>
             </div>
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-              <i data-lucide="briefcase" class="w-6 h-6 text-emerald-600 mx-auto mb-2"></i>
+              <div class="text-2xl mb-2">🏢</div>
               <p id="count-tempat-kerja" class="text-2xl font-bold text-gray-900">-</p>
               <p class="text-xs text-gray-500 mt-0.5">Data Kerja Terisi</p>
             </div>
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-              <i data-lucide="phone" class="w-6 h-6 text-amber-500 mx-auto mb-2"></i>
+              <div class="text-2xl mb-2">📱</div>
               <p id="count-nohp" class="text-2xl font-bold text-gray-900">-</p>
               <p class="text-xs text-gray-500 mt-0.5">Punya No. HP</p>
             </div>
           </div>
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-5 py-3 border-b border-gray-100">
+            <div
+              class="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p class="text-sm font-semibold text-gray-700">Ringkasan Data Enrichment per Alumni</p>
+              <input id="search-enrichment" type="search" placeholder="Cari nama atau NIM..."
+                class="w-full sm:w-64 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300" />
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -392,6 +395,22 @@
                 </thead>
                 <tbody id="enrichment-table-body"></tbody>
               </table>
+              <!-- Pagination Enrichment -->
+              <div id="enrichment-pagination"
+                class="hidden px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+                <p id="enrichment-count" class="text-xs text-gray-400"></p>
+                <div class="flex items-center gap-1">
+                  <button id="enrich-prev" onclick="changeEnrichPage(-1)"
+                    class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    ← Prev
+                  </button>
+                  <div id="enrich-page-numbers" class="flex items-center gap-1"></div>
+                  <button id="enrich-next" onclick="changeEnrichPage(1)"
+                    class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    Next →
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -537,28 +556,80 @@
       if (window.lucide) lucide.createIcons();
     };
 
+    // ===== PAGINATION STATE ENRICHMENT =====
+    const ENRICH_PAGE_SIZE = 20;
+    let enrichCurrentPage = 1;
+
     window.renderEnrichmentSummary = function () {
       if (!window.currentAlumniData) return;
-      const data = window.currentAlumniData;
+      const allData = window.currentAlumniData;
       const tbody = document.getElementById("enrichment-table-body");
+      const paginEl = document.getElementById("enrichment-pagination");
+      const countEl = document.getElementById("enrichment-count");
+      const prevBtn = document.getElementById("enrich-prev");
+      const nextBtn = document.getElementById("enrich-next");
+      const pageNumEl = document.getElementById("enrich-page-numbers");
       if (!tbody) return;
+
+      // Update stat cards
       const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-      set("count-linkedin", data.filter(a => a.enrichment?.linkedin).length);
-      set("count-email", data.filter(a => a.enrichment?.email).length);
-      set("count-tempat-kerja", data.filter(a => a.enrichment?.tempatKerja).length);
-      set("count-nohp", data.filter(a => a.enrichment?.noHp).length);
+      set("count-linkedin", allData.filter(a => a.enrichment?.linkedin).length);
+      set("count-email", allData.filter(a => a.enrichment?.email).length);
+      set("count-tempat-kerja", allData.filter(a => a.enrichment?.tempatKerja).length);
+      set("count-nohp", allData.filter(a => a.enrichment?.noHp).length);
+
+      // Search filter
+      const searchVal = (document.getElementById("search-enrichment")?.value || "").toLowerCase().trim();
+      const filtered = allData.filter(a => {
+        if (!searchVal) return true;
+        return a.name?.toLowerCase().includes(searchVal) ||
+          a.nim?.toLowerCase().includes(searchVal);
+      });
+
+      // Pagination
+      const totalPages = Math.max(1, Math.ceil(filtered.length / ENRICH_PAGE_SIZE));
+      if (enrichCurrentPage > totalPages) enrichCurrentPage = totalPages;
+
+      const start = (enrichCurrentPage - 1) * ENRICH_PAGE_SIZE;
+      const end = start + ENRICH_PAGE_SIZE;
+      const visible = filtered.slice(start, end);
+
+      // Count text
+      if (countEl) {
+        countEl.textContent = `Menampilkan ${start + 1}–${Math.min(end, filtered.length)} dari ${filtered.length} alumni`;
+      }
+
+      // Render kosong
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+      <tr><td colspan="8" class="text-center py-8 text-sm text-gray-400">
+        Tidak ada hasil pencarian.
+      </td></tr>`;
+        if (paginEl) paginEl.classList.add("hidden");
+        return;
+      }
+
+      // Helper centang
       const check = val => val
-        ? `<span class="text-emerald-500 flex justify-center"><i data-lucide="check-circle" class="w-4 h-4"></i></span>`
-        : `<span class="text-gray-200 flex justify-center"><i data-lucide="circle" class="w-4 h-4"></i></span>`;
-      tbody.innerHTML = data.map(a => {
+        ? `<span class="text-emerald-500 flex justify-center font-bold">✓</span>`
+        : `<span class="text-gray-300 flex justify-center">–</span>`;
+
+      tbody.innerHTML = visible.map(a => {
         const enr = a.enrichment || {};
         const pct = a.confidence || 0;
         const barColor = pct >= 70 ? "bg-emerald-500" : pct >= 30 ? "bg-amber-400" : "bg-gray-200";
         const statusBadge = enr.statusKerja
-          ? `<span class="text-xs font-semibold px-2 py-1 rounded-full ${enr.statusKerja === "PNS" ? "bg-blue-100 text-blue-700" : enr.statusKerja === "Wirausaha" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-700"}">${enr.statusKerja}</span>`
+          ? `<span class="text-xs font-semibold px-2 py-1 rounded-full ${enr.statusKerja === "PNS" ? "bg-blue-100 text-blue-700" :
+            enr.statusKerja === "Wirausaha" ? "bg-orange-100 text-orange-700" :
+              "bg-gray-100 text-gray-700"}">${enr.statusKerja}</span>`
           : `<span class="text-gray-300 text-xs">-</span>`;
-        return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-        <td class="px-4 py-3"><p class="font-medium text-gray-900 text-sm">${a.name}</p><p class="text-xs text-gray-400">${a.nim}</p></td>
+
+        return `
+      <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+        <td class="px-4 py-3">
+          <p class="font-medium text-gray-900 text-sm">${a.name}</p>
+          <p class="text-xs text-gray-400">${a.nim}</p>
+        </td>
         <td class="px-4 py-3">${check(enr.linkedin)}</td>
         <td class="px-4 py-3">${check(enr.instagram)}</td>
         <td class="px-4 py-3">${check(enr.email)}</td>
@@ -575,15 +646,55 @@
         </td>
         <td class="px-4 py-3 text-center">
           <button onclick="openEnrichmentModal('${a.id}'); showSection('alumni')"
-            class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg transition-colors">Edit</button>
+            class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+            Edit
+          </button>
         </td>
       </tr>`;
       }).join("");
+
+      // Pagination controls
+      if (paginEl) paginEl.classList.remove("hidden");
+      if (prevBtn) prevBtn.disabled = enrichCurrentPage === 1;
+      if (nextBtn) nextBtn.disabled = enrichCurrentPage === totalPages;
+
+      if (pageNumEl) {
+        pageNumEl.innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(p => p === 1 || p === totalPages || Math.abs(p - enrichCurrentPage) <= 1)
+          .reduce((acc, p, idx, arr) => {
+            if (idx > 0 && p - arr[idx - 1] > 1) {
+              acc += `<span class="px-2 py-1.5 text-xs text-gray-400">...</span>`;
+            }
+            acc += `
+          <button onclick="goToEnrichPage(${p})"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
+            ${p === enrichCurrentPage
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
+            ${p}
+          </button>`;
+            return acc;
+          }, "");
+      }
+
       if (window.lucide) lucide.createIcons();
     };
 
-    document.addEventListener("alumni-loaded", (e) => { window.currentAlumniData = e.detail; });
-    document.addEventListener("DOMContentLoaded", () => { if (window.lucide) lucide.createIcons(); });
+    // ===== Navigasi Pagination Enrichment =====
+    window.changeEnrichPage = function (dir) {
+      const searchVal = (document.getElementById("search-enrichment")?.value || "").toLowerCase().trim();
+      const total = window.currentAlumniData.filter(a =>
+        !searchVal || a.name?.toLowerCase().includes(searchVal) || a.nim?.toLowerCase().includes(searchVal)
+      ).length;
+      const totalPages = Math.ceil(total / ENRICH_PAGE_SIZE);
+      enrichCurrentPage = Math.min(Math.max(1, enrichCurrentPage + dir), totalPages);
+      window.renderEnrichmentSummary();
+    };
+
+    window.goToEnrichPage = function (page) {
+      enrichCurrentPage = page;
+      window.renderEnrichmentSummary();
+    };
   </script>
 
   <!-- ✅ LOAD MAIN + IMPORT EXCEL — listener tombol dipasang setelah module siap -->
@@ -673,6 +784,11 @@
           inputYear.appendChild(opt);
         }
       }
+
+      document.getElementById("search-enrichment")?.addEventListener("input", () => {
+        enrichCurrentPage = 1;
+        window.renderEnrichmentSummary();
+      });
     });
   </script>
 
