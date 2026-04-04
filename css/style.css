@@ -1,16 +1,74 @@
-body{
-font-family:Arial, Helvetica, sans-serif;
+/* ===== FONT ===== */
+body {
+  font-family: 'Satoshi', sans-serif;
 }
 
-table{
-border-collapse:collapse;
+/* ===== NAVBAR GRADIENT MERAH UMM ===== */
+.gradient-bg {
+  background: linear-gradient(135deg, #c0392b 0%, #7b1a13 100%);
 }
 
-th,td{
-padding:8px;
-text-align:left;
+/* ===== ACTIVE NAV ITEM ===== */
+.active-nav {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
 }
 
-th{
-background:#f0f0f0;
+/* ===== ANIMASI ===== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ===== MODAL ===== */
+#enrichment-modal {
+  animation: fadeIn 0.2s ease;
+}
+
+#import-modal {
+  animation: fadeIn 0.2s ease;
+}
+
+/* ===== TOAST NOTIFICATION ===== */
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  animation: slideUp 0.25s ease;
+  max-width: 320px;
+}
+
+.toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.toast-info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
 }

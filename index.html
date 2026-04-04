@@ -9,97 +9,15 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: "Satoshi", sans-serif;
-    }
-
-    .gradient-bg {
-      background: linear-gradient(135deg, #1e3a5f 0%, #0f2942 100%);
-    }
-
-    .active-nav {
-      background: rgba(255, 255, 255, 0.15) !important;
-      color: white !important;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-
-      to {
-        opacity: 1;
-      }
-    }
-
-    @keyframes slideUp {
-      from {
-        transform: translateY(20px);
-        opacity: 0;
-      }
-
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
-    #enrichment-modal {
-      animation: fadeIn 0.2s ease;
-    }
-
-    #import-modal {
-      animation: fadeIn 0.2s ease;
-    }
-
-    #toast-container {
-      position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .toast {
-      padding: 0.75rem 1rem;
-      border-radius: 0.75rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-      animation: slideUp 0.25s ease;
-      max-width: 320px;
-    }
-
-    .toast-success {
-      background: #ecfdf5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-    }
-
-    .toast-error {
-      background: #fef2f2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-
-    .toast-info {
-      background: #eff6ff;
-      color: #1e40af;
-      border: 1px solid #bfdbfe;
-    }
-  </style>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body class="bg-gray-50 min-h-screen">
 
-  <!-- LOGIN PAGE -->
   <div id="login-page" class="min-h-screen gradient-bg flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
       <div class="text-center mb-8">
-        <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <div class="w-16 h-16 bg-red-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
           <i data-lucide="graduation-cap" class="w-8 h-8 text-white"></i>
         </div>
         <h1 class="text-2xl font-bold text-gray-900">Alumni Tracer</h1>
@@ -111,15 +29,15 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input id="login-email" type="email" required placeholder="admin@alumni.ac.id"
-            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent">
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
           <input id="login-password" type="password" required placeholder="••••••••"
-            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent">
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-transparent">
         </div>
         <button type="submit"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm shadow-sm">
+          class="w-full bg-red-700 hover:bg-red-800 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm shadow-sm">
           Sign In
         </button>
       </form>
@@ -127,7 +45,6 @@
     </div>
   </div>
 
-  <!-- MAIN APP -->
   <div id="main-app" class="hidden">
     <div class="flex min-h-screen">
       <aside class="w-64 gradient-bg flex flex-col flex-shrink-0">
@@ -176,13 +93,12 @@
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs text-gray-400 hidden sm:block" id="current-user-email"></span>
-            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+            <div class="w-8 h-8 bg-red-700 rounded-full flex items-center justify-center">
               <i data-lucide="user" class="w-4 h-4 text-white"></i>
             </div>
           </div>
         </header>
 
-        <!-- DASHBOARD -->
         <section id="section-dashboard" class="p-6 space-y-6">
           <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -209,7 +125,7 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <i data-lucide="bar-chart-2" class="w-4 h-4 text-blue-600"></i> Tracking Progress
+                <i data-lucide="bar-chart-2" class="w-4 h-4 text-red-700"></i> Tracking Progress
               </h3>
               <div class="space-y-3">
                 <div>
@@ -240,25 +156,23 @@
             </div>
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <i data-lucide="activity" class="w-4 h-4 text-blue-600"></i> Recent Activity
+                <i data-lucide="activity" class="w-4 h-4 text-red-700"></i> Recent Activity
               </h3>
               <div id="recent-activity-list" class="space-y-1"></div>
             </div>
           </div>
         </section>
 
-        <!-- ALUMNI -->
         <section id="section-alumni" class="p-6 hidden space-y-5">
           <div class="flex items-center justify-between flex-wrap gap-3">
             <h2 class="text-lg font-bold text-gray-900">Data Alumni</h2>
             <div class="flex gap-2 flex-wrap">
-              <!-- ✅ Pakai id, listener dipasang via module -->
               <button id="btn-import-excel"
                 class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
                 <i data-lucide="upload" class="w-4 h-4"></i> Import Excel
               </button>
               <button onclick="document.getElementById('add-alumni-modal').classList.remove('hidden')"
-                class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                class="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
                 <i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Alumni
               </button>
             </div>
@@ -266,17 +180,17 @@
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <input id="search-alumni" type="search" placeholder="Cari nama / NIM..."
-                class="col-span-2 sm:col-span-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                class="col-span-2 sm:col-span-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300">
               <select id="filter-program"
-                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
                 <option value="All">Semua Prodi</option>
               </select>
               <select id="filter-year"
-                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
                 <option value="All">Semua Tahun</option>
               </select>
               <select id="filter-status"
-                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
                 <option value="All">Semua Status</option>
                 <option value="Identified">Identified</option>
                 <option value="Pending">Pending</option>
@@ -311,7 +225,6 @@
                 </thead>
                 <tbody id="alumni-table-body"></tbody>
               </table>
-              <!-- Pagination Alumni -->
               <div id="alumni-pagination"
                 class="hidden px-5 py-3 border-t border-gray-100 flex items-center justify-between">
                 <button id="alumni-prev" onclick="changeAlumniPage(-1)"
@@ -328,13 +241,13 @@
           </div>
         </section>
 
-        <!-- ENRICHMENT VIEW -->
         <section id="section-enrichment-view" class="p-6 hidden space-y-5">
           <div>
             <h2 class="text-lg font-bold text-gray-900">Enrichment Data Alumni</h2>
             <p class="text-sm text-gray-500 mt-0.5">Lengkapi data sosial media & pekerjaan alumni secara semi-otomatis
             </p>
           </div>
+
           <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5">
             <h3 class="font-semibold text-blue-800 text-sm mb-2 flex items-center gap-2">
               <i data-lucide="info" class="w-4 h-4"></i> Cara Penggunaan Fitur Enrichment
@@ -395,7 +308,6 @@
                 </thead>
                 <tbody id="enrichment-table-body"></tbody>
               </table>
-              <!-- Pagination Enrichment -->
               <div id="enrichment-pagination"
                 class="hidden px-5 py-3 border-t border-gray-100 flex items-center justify-between">
                 <p id="enrichment-count" class="text-xs text-gray-400"></p>
@@ -415,21 +327,18 @@
           </div>
         </section>
 
-        <!-- VERIFIKASI -->
         <section id="section-verification" class="p-6 hidden">
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 class="text-lg font-bold text-gray-900 mb-1">Verifikasi Manual</h2>
             <p class="text-sm text-gray-500 mb-4">Alumni dengan status Pending menunggu konfirmasi admin</p>
 
-            <!-- ✅ Tambah Search Box -->
             <div class="mb-4">
               <input id="search-verification" type="search" placeholder="Cari nama atau NIM..."
-                class="w-full sm:w-72 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                class="w-full sm:w-72 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300" />
             </div>
 
             <div id="verification-list"></div>
 
-            <!-- ✅ Tombol Load More -->
             <div id="verification-pagination" class="hidden mt-4 flex items-center justify-between">
               <p id="verification-count" class="text-xs text-gray-400"></p>
               <div class="flex items-center gap-1">
@@ -449,7 +358,6 @@
     </div>
   </div>
 
-  <!-- Modal Tambah Alumni -->
   <div id="add-alumni-modal"
     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
@@ -464,24 +372,24 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
           <input id="input-name" type="text" required placeholder="Nama lengkap alumni"
-            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">NIM</label>
           <input id="input-nim" type="text" required placeholder="Nomor Induk Mahasiswa"
-            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
           <select id="input-program" required
-            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
             <option value="">-- Pilih Prodi --</option>
           </select>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Tahun Masuk</label>
           <select id="input-year" required
-            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
             <option value="">-- Pilih Tahun --</option>
           </select>
         </div>
@@ -489,7 +397,7 @@
           <button type="button" onclick="document.getElementById('add-alumni-modal').classList.add('hidden')"
             class="flex-1 py-2.5 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">Batal</button>
           <button type="submit"
-            class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            class="flex-1 py-2.5 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold rounded-xl transition-colors">
             Tambah Alumni
           </button>
         </div>
@@ -499,7 +407,6 @@
 
   <div id="toast-container"></div>
 
-  <!-- ✅ FIREBASE AUTH — import auth dari firebase.js, tidak ada initializeApp baru -->
   <script type="module">
     import { auth } from "./firebase.js";
     import { signInWithEmailAndPassword, onAuthStateChanged, signOut }
@@ -537,7 +444,6 @@
     };
   </script>
 
-  <!-- NAVIGATION -->
   <script>
     const SECTIONS = ["dashboard", "alumni", "enrichment-view", "verification"];
     const TITLES = { "dashboard": "Dashboard", "alumni": "Data Alumni", "enrichment-view": "Enrichment Data", "verification": "Verifikasi Manual" };
@@ -646,7 +552,7 @@
         </td>
         <td class="px-4 py-3 text-center">
           <button onclick="openEnrichmentModal('${a.id}'); showSection('alumni')"
-            class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+            class="text-xs bg-red-700 hover:bg-red-800 text-white px-3 py-1.5 rounded-lg transition-colors">
             Edit
           </button>
         </td>
@@ -669,7 +575,7 @@
           <button onclick="goToEnrichPage(${p})"
             class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
             ${p === enrichCurrentPage
-                ? 'bg-purple-600 text-white'
+                ? 'bg-red-700 text-white'
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
             ${p}
           </button>`;
@@ -697,7 +603,6 @@
     };
   </script>
 
-  <!-- ✅ LOAD MAIN + IMPORT EXCEL — listener tombol dipasang setelah module siap -->
   <script type="module">
     import "./main.js";
     import "./import-excel.js";

@@ -172,7 +172,7 @@ function renderAlumniTable() {
           <button onclick="goToAlumniPage(${p})"
             class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
             ${p === alumniCurrentPage
-            ? 'bg-blue-600 text-white'
+            ? 'bg-red-700 text-white'
             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
             ${p}
           </button>`;
@@ -288,7 +288,7 @@ function renderVerification() {
           <button onclick="goToVerifPage(${p})"
             class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
             ${p === verifCurrentPage
-            ? 'bg-blue-600 text-white'
+            ? 'bg-red-700 text-white'
             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
             ${p}
           </button>`;
