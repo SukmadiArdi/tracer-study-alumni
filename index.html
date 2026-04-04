@@ -281,12 +281,14 @@
                 <option value="Identified">Identified</option>
                 <option value="Pending">Pending</option>
                 <option value="Not Found">Not Found</option>
+                <option value="Enriched">Enriched</option>
               </select>
             </div>
           </div>
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-5 py-3 border-b border-gray-100">
+            <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
               <p id="table-count-text" class="text-xs text-gray-400">Memuat data...</p>
+              <p id="table-page-info" class="text-xs text-gray-400"></p>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full">
@@ -309,6 +311,19 @@
                 </thead>
                 <tbody id="alumni-table-body"></tbody>
               </table>
+              <!-- Pagination Alumni -->
+              <div id="alumni-pagination"
+                class="hidden px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+                <button id="alumni-prev" onclick="changeAlumniPage(-1)"
+                  class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  ← Prev
+                </button>
+                <div id="alumni-page-numbers" class="flex items-center gap-1"></div>
+                <button id="alumni-next" onclick="changeAlumniPage(1)"
+                  class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Next →
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -385,9 +400,31 @@
         <section id="section-verification" class="p-6 hidden">
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 class="text-lg font-bold text-gray-900 mb-1">Verifikasi Manual</h2>
-            <p class="text-sm text-gray-500 mb-5">Alumni dengan status Pending menunggu konfirmasi admin</p>
+            <p class="text-sm text-gray-500 mb-4">Alumni dengan status Pending menunggu konfirmasi admin</p>
+
+            <!-- ✅ Tambah Search Box -->
+            <div class="mb-4">
+              <input id="search-verification" type="search" placeholder="Cari nama atau NIM..."
+                class="w-full sm:w-72 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+
             <div id="verification-list"></div>
-          </div>
+
+            <!-- ✅ Tombol Load More -->
+            <div id="verification-pagination" class="hidden mt-4 flex items-center justify-between">
+              <p id="verification-count" class="text-xs text-gray-400"></p>
+              <div class="flex items-center gap-1">
+                <button id="verif-prev" onclick="changeVerifPage(-1)"
+                  class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  ← Prev
+                </button>
+                <div id="verif-page-numbers" class="flex gap-1"></div>
+                <button id="verif-next" onclick="changeVerifPage(1)"
+                  class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Next →
+                </button>
+              </div>
+            </div>
         </section>
       </main>
     </div>

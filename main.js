@@ -30,15 +30,25 @@ function updateFilterYearsOptions() {
   filterYear.value = uniqueYears.includes(parseInt(currentVal)) ? currentVal : "All";
 }
 
-document.getElementById("filter-program")?.addEventListener("change", renderAlumniTable);
-document.getElementById("filter-year")?.addEventListener("change", renderAlumniTable);
-document.getElementById("filter-status")?.addEventListener("change", renderAlumniTable);
-document.getElementById("search-alumni")?.addEventListener("input", renderAlumniTable);
+document.getElementById("filter-program")?.addEventListener("change", () => { alumniCurrentPage = 1; renderAlumniTable(); });
+document.getElementById("filter-year")?.addEventListener("change", () => { alumniCurrentPage = 1; renderAlumniTable(); });
+document.getElementById("filter-status")?.addEventListener("change", () => { alumniCurrentPage = 1; renderAlumniTable(); });
+document.getElementById("search-alumni")?.addEventListener("input", () => { alumniCurrentPage = 1; renderAlumniTable(); });
+document.getElementById("search-verification")?.addEventListener("input", () => { verifCurrentPage = 1; renderVerification(); });
+
+// ===== PAGINATION STATE ALUMNI =====
+const ALUMNI_PAGE_SIZE = 20;
+let alumniCurrentPage = 1;
 
 // ===== 3. RENDER TABEL ALUMNI =====
 function renderAlumniTable() {
   const tbody = document.getElementById("alumni-table-body");
   const countText = document.getElementById("table-count-text");
+  const pageInfo = document.getElementById("table-page-info");
+  const paginEl = document.getElementById("alumni-pagination");
+  const prevBtn = document.getElementById("alumni-prev");
+  const nextBtn = document.getElementById("alumni-next");
+  const pageNumEl = document.getElementById("alumni-page-numbers");
   if (!tbody) return;
 
   const fProg = document.getElementById("filter-program")?.value || "All";
@@ -49,7 +59,14 @@ function renderAlumniTable() {
   const filteredData = currentAlumniData.filter(a => {
     if (fProg !== "All" && a.program !== fProg) return false;
     if (fYear !== "All" && a.year.toString() !== fYear) return false;
-    if (fStat !== "All" && a.status !== fStat) return false;
+    if (fStat !== "All") {
+      if (fStat === "Enriched") {
+        const enr = a.enrichment;
+        if (!enr?.tempatKerja && !enr?.linkedin && !enr?.email) return false;
+      } else {
+        if (a.status !== fStat) return false;
+      }
+    }
     if (searchVal) {
       const matchName = a.name?.toLowerCase().trim().includes(searchVal);
       const matchNim = a.nim?.toString().toLowerCase().trim().includes(searchVal);
@@ -58,39 +75,46 @@ function renderAlumniTable() {
     return true;
   });
 
-  if (countText) countText.textContent = `Menampilkan ${filteredData.length} dari ${currentAlumniData.length} alumni`;
+  // Hitung pagination
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / ALUMNI_PAGE_SIZE));
+  if (alumniCurrentPage > totalPages) alumniCurrentPage = totalPages;
 
+  const start = (alumniCurrentPage - 1) * ALUMNI_PAGE_SIZE;
+  const end = start + ALUMNI_PAGE_SIZE;
+  const visible = filteredData.slice(start, end);
+
+  // Update count & page info
+  if (countText) countText.textContent = `Menampilkan ${filteredData.length} dari ${currentAlumniData.length} alumni`;
+  if (pageInfo) pageInfo.textContent = filteredData.length > 0 ? `Halaman ${alumniCurrentPage} / ${totalPages}` : "";
+
+  // Render kosong
   if (filteredData.length === 0) {
     tbody.innerHTML = `
-      <tr>
-        <td colspan="7" class="text-center py-12 text-gray-400">
-          <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
-          <p class="text-sm">Tidak ada alumni yang ditemukan</p>
-        </td>
-      </tr>`;
+      <tr><td colspan="7" class="text-center py-12 text-gray-400">
+        <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+        <p class="text-sm">Tidak ada alumni yang ditemukan</p>
+      </td></tr>`;
+    if (paginEl) paginEl.classList.add("hidden");
     if (window.lucide) lucide.createIcons();
     return;
   }
 
+  // Render baris tabel
   const statusColor = {
     "Identified": "bg-emerald-100 text-emerald-700",
     "Pending": "bg-amber-100 text-amber-700",
     "Not Found": "bg-red-100 text-red-700"
   };
 
-  tbody.innerHTML = filteredData.map(a => {
+  tbody.innerHTML = visible.map(a => {
     const enr = a.enrichment || {};
     const hasEnrichment = enr.tempatKerja || enr.linkedin || enr.email;
     const enrichBadge = hasEnrichment
       ? `<span class="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full ml-1">
            <i data-lucide="check-circle" class="w-3 h-3"></i> Enriched
-         </span>`
-      : "";
+         </span>` : "";
     const statusKerjaBadge = enr.statusKerja
-      ? `<span class="text-xs text-gray-400 block mt-0.5">
-           ${enr.statusKerja === "PNS" ? "🏛️" : enr.statusKerja === "Wirausaha" ? "🚀" : "🏢"} ${enr.statusKerja}
-         </span>`
-      : "";
+      ? `<span class="text-xs text-gray-400 block mt-0.5">${enr.statusKerja}</span>` : "";
     const colorClass = statusColor[a.status] || "bg-gray-100 text-gray-600";
 
     return `
@@ -116,18 +140,15 @@ function renderAlumniTable() {
         <td class="px-4 py-3">
           <div class="flex items-center gap-1.5 flex-wrap">
             <button onclick="openEnrichmentModal('${a.id}')"
-              class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm"
-              title="Enrichment Data Sosmed & Pekerjaan">
+              class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm">
               <i data-lucide="search" class="w-3 h-3"></i> Enrichment
             </button>
             <button onclick="handleTrackAlumni('${a.id}')"
-              class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
-              title="Run Auto Tracking">
+              class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm">
               <i data-lucide="radar" class="w-3 h-3"></i> Track
             </button>
-            <button onclick="handleDeleteAlumni('${a.id}', '${a.name.replace(/'/g, "\\'")}')"
-              class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
-              title="Hapus Alumni">
+            <button onclick="handleDeleteAlumni('${a.id}', '${a.name.replace(/'/g, '')}')"
+              class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
               <i data-lucide="trash-2" class="w-3 h-3"></i>
             </button>
           </div>
@@ -135,19 +156,96 @@ function renderAlumniTable() {
       </tr>`;
   }).join("");
 
+  // Render pagination
+  if (paginEl) paginEl.classList.remove("hidden");
+  if (prevBtn) prevBtn.disabled = alumniCurrentPage === 1;
+  if (nextBtn) nextBtn.disabled = alumniCurrentPage === totalPages;
+
+  if (pageNumEl) {
+    pageNumEl.innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter(p => p === 1 || p === totalPages || Math.abs(p - alumniCurrentPage) <= 1)
+      .reduce((acc, p, idx, arr) => {
+        if (idx > 0 && p - arr[idx - 1] > 1) {
+          acc += `<span class="px-2 py-1.5 text-xs text-gray-400">...</span>`;
+        }
+        acc += `
+          <button onclick="goToAlumniPage(${p})"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
+            ${p === alumniCurrentPage
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
+            ${p}
+          </button>`;
+        return acc;
+      }, "");
+  }
+
   if (window.lucide) lucide.createIcons();
 }
 
+// ===== Navigasi Pagination Alumni =====
+window.changeAlumniPage = function (dir) {
+  const totalPages = Math.ceil(
+    currentAlumniData.filter(() => true).length / ALUMNI_PAGE_SIZE
+  );
+  alumniCurrentPage = Math.min(Math.max(1, alumniCurrentPage + dir), totalPages);
+  renderAlumniTable();
+};
+
+window.goToAlumniPage = function (page) {
+  alumniCurrentPage = page;
+  renderAlumniTable();
+};
+
 // ===== 4. RENDER VERIFIKASI MANUAL =====
+const VERIF_PAGE_SIZE = 20;
+let verifCurrentPage = 1;
+
 function renderVerification() {
   const container = document.getElementById("verification-list");
+  const paginEl = document.getElementById("verification-pagination");
+  const countEl = document.getElementById("verification-count");
+  const pageNumEl = document.getElementById("verif-page-numbers");
+  const prevBtn = document.getElementById("verif-prev");
+  const nextBtn = document.getElementById("verif-next");
   if (!container) return;
-  const pendingList = currentAlumniData.filter(a => a.status === "Pending");
+
+  const searchVal = (document.getElementById("search-verification")?.value || "").toLowerCase().trim();
+
+  const pendingList = currentAlumniData.filter(a => {
+    if (a.status !== "Pending") return false;
+    if (searchVal) {
+      const matchName = a.name?.toLowerCase().includes(searchVal);
+      const matchNim = a.nim?.toLowerCase().includes(searchVal);
+      if (!matchName && !matchNim) return false;
+    }
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(pendingList.length / VERIF_PAGE_SIZE));
+
+  // Pastikan halaman tidak melebihi total
+  if (verifCurrentPage > totalPages) verifCurrentPage = totalPages;
+
+  const start = (verifCurrentPage - 1) * VERIF_PAGE_SIZE;
+  const end = start + VERIF_PAGE_SIZE;
+  const visible = pendingList.slice(start, end);
+
+  // Count text
+  if (countEl) {
+    countEl.textContent = `Menampilkan ${start + 1}–${Math.min(end, pendingList.length)} dari ${pendingList.length} alumni pending`;
+  }
+
+  // Render list
   if (pendingList.length === 0) {
-    container.innerHTML = `<p class="text-sm text-gray-400 text-center py-6">Tidak ada alumni yang perlu diverifikasi</p>`;
+    container.innerHTML = `<p class="text-sm text-gray-400 text-center py-6">
+      ${searchVal ? "Tidak ada hasil pencarian." : "Tidak ada alumni yang perlu diverifikasi"}
+    </p>`;
+    if (paginEl) paginEl.classList.add("hidden");
     return;
   }
-  container.innerHTML = pendingList.map(a => `
+
+  container.innerHTML = visible.map(a => `
     <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
       <div>
         <p class="text-sm font-medium text-gray-900">${a.name}</p>
@@ -156,15 +254,68 @@ function renderVerification() {
       <div class="flex gap-2">
         <button onclick="confirmVerify('${a.id}', 'approve')"
           class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors">
-          ✓ Identified
+          Identified
         </button>
         <button onclick="confirmVerify('${a.id}', 'reject')"
           class="px-3 py-1.5 text-xs font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
-          ✗ Not Found
+          Not Found
         </button>
       </div>
-    </div>`).join("");
+    </div>
+  `).join("");
+
+  // Render pagination
+  if (paginEl) paginEl.classList.remove("hidden");
+
+  // Prev / Next button state
+  if (prevBtn) prevBtn.disabled = verifCurrentPage === 1;
+  if (nextBtn) nextBtn.disabled = verifCurrentPage === totalPages;
+
+  // Page number buttons
+  if (pageNumEl) {
+    pageNumEl.innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter(p => {
+        // Tampilkan halaman di sekitar halaman aktif saja (max 5 tombol)
+        return p === 1 || p === totalPages ||
+          Math.abs(p - verifCurrentPage) <= 1;
+      })
+      .reduce((acc, p, idx, arr) => {
+        // Tambah "..." jika ada gap
+        if (idx > 0 && p - arr[idx - 1] > 1) {
+          acc += `<span class="px-2 py-1.5 text-xs text-gray-400">...</span>`;
+        }
+        acc += `
+          <button onclick="goToVerifPage(${p})"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
+            ${p === verifCurrentPage
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
+            ${p}
+          </button>`;
+        return acc;
+      }, "");
+  }
 }
+
+// ===== Navigasi Pagination =====
+window.changeVerifPage = function (dir) {
+  const searchVal = (document.getElementById("search-verification")?.value || "").toLowerCase().trim();
+  const totalItems = currentAlumniData.filter(a => {
+    if (a.status !== "Pending") return false;
+    if (searchVal) {
+      return a.name?.toLowerCase().includes(searchVal) || a.nim?.toLowerCase().includes(searchVal);
+    }
+    return true;
+  }).length;
+  const totalPages = Math.ceil(totalItems / VERIF_PAGE_SIZE);
+  verifCurrentPage = Math.min(Math.max(1, verifCurrentPage + dir), totalPages);
+  renderVerification();
+};
+
+window.goToVerifPage = function (page) {
+  verifCurrentPage = page;
+  renderVerification();
+};
 
 // ===== 5. TRACKING ALUMNI =====
 async function handleTrackAlumni(id) {
