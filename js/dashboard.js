@@ -1,132 +1,57 @@
 // Mengambil log lama dari localStorage (atau buat baru jika kosong)
-let activities = JSON.parse(localStorage.getItem('alumniActivities')) || [
-    { msg: "Sistem berhasil dimuat", time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), icon: "check", color: "text-emerald-600", bg: "bg-emerald-50" }
+let activities = JSON.parse(localStorage.getItem("alumniActivities")) || [
+  {
+    msg: "Sistem berhasil dimuat",
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    icon: "check", color: "text-emerald-600", bg: "bg-emerald-50"
+  }
 ];
 
-export function addActivity(msg, icon="info", color="text-blue-600", bg="bg-blue-50") {
-    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    // Masukkan log baru ke urutan pertama
-    activities.unshift({ msg, time, icon, color, bg });
-    // Batasi array hanya 5 log terbaru
-    if(activities.length > 5) activities.pop();
-    
-    // Simpan ke localStorage agar tidak hilang saat reload
-    localStorage.setItem('alumniActivities', JSON.stringify(activities));
-    renderActivities();
+export function addActivity(msg, icon = "info", color = "text-blue-600", bg = "bg-blue-50") {
+  const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  activities.unshift({ msg, time, icon, color, bg });
+  if (activities.length > 5) activities.pop();
+  localStorage.setItem("alumniActivities", JSON.stringify(activities));
+  renderActivities();
 }
 
 export function renderActivities() {
-    const container = document.getElementById("recent-activity-list");
-    if(!container) return;
-    container.innerHTML = activities.map(a => `
-        <div class="flex items-center gap-3 text-sm anim-slide-right">
-            <div class="w-8 h-8 rounded-full ${a.bg} flex items-center justify-center ${a.color}">
-                <i data-lucide="${a.icon}" style="width:14px;height:14px;"></i>
-            </div>
-            <div class="flex-1">
-                <span class="text-navy-700 font-medium">${a.msg}</span>
-            </div>
-            <span class="text-navy-300 text-xs">${a.time}</span>
-        </div>
-    `).join('');
-    if(window.lucide) lucide.createIcons();
-}
-
-export function calculateStats(alumniData) {
-  let total = 0; let identified = 0; let pending = 0; let notFound = 0;
-  alumniData.forEach(alumni => {
-    total++;
-    if (alumni.status === "Identified") identified++;
-    else if (alumni.status === "Pending") pending++;
-    else if (alumni.status === "Not Found") notFound++;
-  });
-  return { total, identified, pending, notFound };
-}
-
-export function updateDashboardCards(stats) {
-  const tEl = document.getElementById("stat-total");
-  const iEl = document.getElementById("stat-identified");
-  const pEl = document.getElementById("stat-pending");
-  const nEl = document.getElementById("stat-notfound");
-  const verifBadge = document.getElementById("verif-badge");
-
-  if (tEl) tEl.textContent = stats.total;
-  if (iEl) iEl.textContent = stats.identified;
-  if (pEl) pEl.textContent = stats.pending;
-  if (nEl) nEl.textContent = stats.notFound;
-  
-  const t = stats.total || 1; 
-  const bI = document.getElementById("bar-identified"); if(bI) bI.style.width = `${(stats.identified/t)*100}%`;
-  const bP = document.getElementById("bar-pending"); if(bP) bP.style.width = `${(stats.pending/t)*100}%`;
-  const bN = document.getElementById("bar-notfound"); if(bN) bN.style.width = `${(stats.notFound/t)*100}%`;
-
-  if (verifBadge) {
-      verifBadge.textContent = stats.pending;
-      stats.pending === 0 ? verifBadge.classList.add("hidden") : verifBadge.classList.remove("hidden");
-  }
-}
-
-export function updateProgressRing(stats) {
-  const percent = stats.total === 0 ? 0 : Math.round((stats.identified / stats.total) * 100);
-  const circle = document.getElementById("progress-circle");
-  const label = document.getElementById("progress-percent");
-
-  if (!circle || !label) return;
-  const circumference = 2 * Math.PI * 64;
-  const offset = circumference - (percent / 100) * circumference;
-  circle.style.strokeDasharray = circumference;
-  circle.style.strokeDashoffset = offset;
-  label.textContent = percent + "%";
-  
-  const lI = document.getElementById("leg-identified"); if(lI) lI.textContent = stats.identified;
-  const lP = document.getElementById("leg-pending"); if(lP) lP.textContent = stats.pending;
-  const lN = document.getElementById("leg-notfound"); if(lN) lN.textContent = stats.notFound;
-}
-
-export function updateChart(alumniData) {
-    const container = document.getElementById("chart-container");
-    if(!container) return;
-
-    const yearCounts = {};
-    alumniData.forEach(a => {
-        const y = a.year || "N/A";
-        yearCounts[y] = (yearCounts[y] || 0) + 1;
-    });
-
-    const years = Object.keys(yearCounts).sort();
-    if(years.length === 0) {
-        container.innerHTML = '<div class="text-xs text-navy-400 w-full text-center pb-10">Data kosong</div>';
-        return;
-    }
-
-    const max = Math.max(...Object.values(yearCounts));
-    const colors = ['bg-navy-200', 'bg-navy-300', 'bg-navy-400', 'bg-navy-500', 'bg-navy-600', 'bg-navy-700'];
-    let html = '';
-
-    years.forEach((y, idx) => {
-        const count = yearCounts[y];
-        const heightPct = Math.max((count / max) * 100, 10); 
-        const color = colors[Math.min(idx, colors.length - 1)];
-
-        // FIX: Tambahkan 'h-full' dan 'justify-end' agar % height bekerja di parent flex
-        html += `
-        <div class="flex-1 flex flex-col items-center justify-end gap-1 h-full">
-            <div class="w-full ${color} rounded-t-lg relative group transition-all duration-500" style="height:${heightPct}%">
-                <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-navy-700 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
-                    ${count} Alumni
-                </div>
-            </div>
-            <span class="text-[10px] text-navy-400">${y}</span>
-        </div>`;
-    });
-
-    container.innerHTML = html;
+  const container = document.getElementById("recent-activity-list");
+  if (!container) return;
+  container.innerHTML = activities.map(a => `
+    <div class="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
+      <div class="flex-shrink-0 w-7 h-7 rounded-full ${a.bg} flex items-center justify-center mt-0.5">
+        <i data-lucide="${a.icon}" class="w-3.5 h-3.5 ${a.color}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-gray-700 leading-snug">${a.msg}</p>
+        <p class="text-xs text-gray-400 mt-0.5">${a.time}</p>
+      </div>
+    </div>`).join("");
+  if (window.lucide) lucide.createIcons();
 }
 
 export function updateDashboard(alumniData) {
-  const stats = calculateStats(alumniData);
-  updateDashboardCards(stats);
-  updateProgressRing(stats);
-  updateChart(alumniData);
-  renderActivities(); // Pastikan render activity dipanggil saat dashboard diupdate
+  const total      = alumniData.length;
+  const identified = alumniData.filter(a => a.status === "Identified").length;
+  const pending    = alumniData.filter(a => a.status === "Pending").length;
+  const notFound   = alumniData.filter(a => a.status === "Not Found").length;
+  const enriched   = alumniData.filter(a => a.enrichment && Object.keys(a.enrichment).length > 0 && a.enrichment.tempatKerja).length;
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set("stat-total",      total);
+  set("stat-identified", identified);
+  set("stat-pending",    pending);
+  set("stat-not-found",  notFound);
+  set("stat-enriched",   enriched);
+
+  // Progress bars
+  const setWidth = (id, pct) => { const el = document.getElementById(id); if (el) el.style.width = pct + "%"; };
+  if (total > 0) {
+    setWidth("bar-identified", Math.round((identified / total) * 100));
+    setWidth("bar-pending",    Math.round((pending    / total) * 100));
+    setWidth("bar-not-found",  Math.round((notFound   / total) * 100));
+  }
+
+  renderActivities();
 }

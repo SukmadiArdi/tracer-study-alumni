@@ -1,401 +1,645 @@
-<!doctype html>
-<html lang="en" class="h-full">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Alumni Tracer Study System</title>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <script>
-tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        navy: { 50:'#f0f4fa', 100:'#dce4f2', 200:'#bccbe7', 300:'#8da8d6', 400:'#5e82c1', 500:'#3d63aa', 600:'#1e3a6e', 700:'#162d56', 800:'#0f2041', 900:'#0a1628' },
-        slate_surface: '#f7f9fc',
-        card_white: '#ffffff',
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Satoshi", sans-serif;
+    }
+
+    .gradient-bg {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f2942 100%);
+    }
+
+    .active-nav {
+      background: rgba(255, 255, 255, 0.15) !important;
+      color: white !important;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
       }
     }
-  }
-}
-</script>
-  <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; font-family: 'DM Sans', sans-serif; }
-.font-display { font-family: 'Playfair Display', serif; }
 
-/* Animations */
-@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-@keyframes scaleIn { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
-@keyframes slideRight { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
-@keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-.anim-fade-up { animation: fadeUp .5s ease both; }
-.anim-scale-in { animation: scaleIn .4s ease both; }
-.anim-slide-right { animation: slideRight .4s ease both; }
-.anim-delay-1 { animation-delay: .08s; }
-.anim-delay-2 { animation-delay: .16s; }
-.anim-delay-3 { animation-delay: .24s; }
-.anim-delay-4 { animation-delay: .32s; }
-.anim-delay-5 { animation-delay: .4s; }
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #bccbe7; border-radius: 3px; }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
 
-/* Progress ring */
-.progress-ring-circle { transition: stroke-dashoffset 0.6s ease; transform: rotate(-90deg); transform-origin: 50% 50%; }
+    #enrichment-modal {
+      animation: fadeIn 0.2s ease;
+    }
 
-/* Table row hover */
-.table-row-hover { transition: background .15s ease; }
-.table-row-hover:hover { background: #f0f4fa; }
+    #import-modal {
+      animation: fadeIn 0.2s ease;
+    }
 
-/* Sidebar link */
-.sidebar-link { transition: all .15s ease; }
-.sidebar-link:hover { background: rgba(255,255,255,.12); }
-.sidebar-link.active { background: rgba(255,255,255,.18); border-left: 3px solid #fff; }
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
 
-/* Tooltip */
-.badge-pulse { animation: pulse-dot 2s ease infinite; }
+    .toast {
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      animation: slideUp 0.25s ease;
+      max-width: 320px;
+    }
 
-/* Modal overlay */
-.modal-overlay { background: rgba(10,22,40,.45); backdrop-filter: blur(4px); }
+    .toast-success {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
 
-/* Custom checkbox */
-.custom-check { accent-color: #1e3a6e; }
-</style>
-  <style>body { box-sizing: border-box; }</style>
-  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
- </head>
- <body class="h-full bg-slate_surface text-navy-800 overflow-auto">
-  <div id="page-login" class="h-full w-full flex">
-   <div class="hidden lg:flex w-1/2 bg-gradient-to-br from-navy-600 via-navy-700 to-navy-900 relative overflow-hidden flex-col justify-center items-center p-12">
-    <div class="absolute top-0 left-0 w-full h-full opacity-10">
-     <div class="absolute top-10 left-10 w-64 h-64 rounded-full border-2 border-white"></div>
-     <div class="absolute bottom-20 right-10 w-48 h-48 rounded-full border border-white"></div>
-     <div class="absolute top-1/3 right-1/4 w-32 h-32 rounded-full bg-white/10"></div>
-     <div class="absolute bottom-1/3 left-1/4 w-20 h-20 rounded-full bg-white/5"></div>
-    </div>
-    <div class="relative z-10 anim-scale-in">
-     <svg width="280" height="240" viewbox="0 0 280 240" fill="none">
-        <circle cx="140" cy="120" r="36" fill="rgba(255,255,255,.15)" stroke="white" stroke-width="2" /> <text x="140" y="110" text-anchor="middle" fill="white" font-size="11" font-family="DM Sans" font-weight="600">ALUMNI</text> <text x="140" y="126" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="9" font-family="DM Sans">NETWORK</text> 
-        <circle cx="50" cy="50" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> <text x="50" y="54" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">CS</text> <line x1="68" y1="62" x2="108" y2="98" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
-        <circle cx="230" cy="45" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> <text x="230" y="49" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">ENG</text> <line x1="212" y1="57" x2="172" y2="98" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
-        <circle cx="40" cy="180" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> <text x="40" y="184" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">BIZ</text> <line x1="58" y1="172" x2="110" y2="142" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
-        <circle cx="245" cy="175" r="18" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.5)" stroke-width="1.5" /> <text x="245" y="179" text-anchor="middle" fill="white" font-size="7" font-family="DM Sans">MED</text> <line x1="227" y1="167" x2="172" y2="140" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="4 3" /> 
-        <circle cx="140" cy="220" r="14" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.4)" stroke-width="1" /> <text x="140" y="224" text-anchor="middle" fill="white" font-size="6" font-family="DM Sans">LAW</text> <line x1="140" y1="206" x2="140" y2="156" stroke="rgba(255,255,255,.2)" stroke-width="1" stroke-dasharray="4 3" /> 
-        <circle cx="100" cy="30" r="3" fill="rgba(255,255,255,.3)" class="badge-pulse" /> <circle cx="200" cy="200" r="3" fill="rgba(255,255,255,.3)" class="badge-pulse" style="animation-delay:.6s" /> <circle cx="260" cy="110" r="2.5" fill="rgba(255,255,255,.2)" class="badge-pulse" style="animation-delay:1.2s" />
-     </svg>
-    </div>
-    <div class="relative z-10 mt-10 text-center anim-fade-up anim-delay-2">
-     <h2 class="text-white font-display text-2xl mb-2" id="login-illustration-title">Alumni Tracer Study</h2>
-     <p class="text-white/60 text-sm max-w-xs">Connecting graduates with their alma mater. Track career outcomes and strengthen the alumni network.</p>
-    </div>
-   </div>
-   <div class="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16">
-    <div class="w-full max-w-md anim-fade-up">
-     <div class="flex items-center gap-3 mb-10">
-      <div class="w-11 h-11 rounded-xl bg-navy-600 flex items-center justify-center">
-       <svg width="22" height="22" viewbox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 10v6M2 10l10-5 10 5-10 5z" /><path d="M6 12v5c0 1 4 3 6 3s6-2 6-3v-5" />
-       </svg>
-      </div>
-      <div><span class="font-semibold text-navy-700 text-lg" id="login-uni-name">Universitas Nusantara</span> <span class="block text-xs text-navy-400">Administration Portal</span>
-      </div>
-     </div>
-     <h1 class="font-display text-3xl text-navy-800 mb-1" id="login-welcome-text">Welcome back</h1>
-     <p class="text-navy-400 mb-8 text-sm">Sign in to access the Alumni Tracer dashboard</p>
-     <form id="login-form" class="space-y-5" onsubmit="return false;">
-      <div><label for="login-user" class="block text-sm font-medium text-navy-600 mb-1.5">Username</label>
-       <div class="relative"><span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy-300"><i data-lucide="user" style="width:18px;height:18px;"></i></span> <input id="login-user" type="text" placeholder="admin@university.ac.id" class="w-full pl-11 pr-4 py-3 rounded-xl border border-navy-200 bg-white focus:outline-none focus:ring-2 focus:ring-navy-400/40 focus:border-navy-400 text-sm transition">
-       </div>
-      </div>
-      <div><label for="login-pass" class="block text-sm font-medium text-navy-600 mb-1.5">Password</label>
-       <div class="relative"><span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy-300"><i data-lucide="lock" style="width:18px;height:18px;"></i></span> <input id="login-pass" type="password" placeholder="••••••••" class="w-full pl-11 pr-4 py-3 rounded-xl border border-navy-200 bg-white focus:outline-none focus:ring-2 focus:ring-navy-400/40 focus:border-navy-400 text-sm transition">
-       </div>
-      </div>
-      <div class="flex items-center justify-between text-sm"><label class="flex items-center gap-2 cursor-pointer"> <input type="checkbox" class="custom-check rounded"> <span class="text-navy-500">Remember me</span> </label> <button type="button" class="text-navy-500 hover:text-navy-700 transition">Forgot password?</button>
-      </div><button type="submit" id="btn-login" class="w-full py-3 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-semibold text-sm transition active:scale-[0.98] flex items-center justify-center gap-2"> <i data-lucide="log-in" style="width:18px;height:18px;"></i> Sign In </button>
-     </form>
-     <p class="text-center text-xs text-navy-300 mt-8">© 2026 Alumni Tracer Study System</p>
-    </div>
-   </div>
-  </div>
-  
-  <div id="app-shell" class="h-full w-full hidden">
-   <div class="flex h-full w-full">
-    <aside id="sidebar" class="w-64 bg-gradient-to-b from-navy-700 to-navy-900 flex flex-col shrink-0 transition-all duration-300 overflow-y-auto">
-     <div class="p-5 flex items-center gap-3 border-b border-white/10">
-      <div class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
-       <svg width="18" height="18" viewbox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 10v6M2 10l10-5 10 5-10 5z" /><path d="M6 12v5c0 1 4 3 6 3s6-2 6-3v-5" />
-       </svg>
-      </div>
-      <div><span class="text-white font-semibold text-sm leading-tight block" id="sidebar-uni-name">Universitas Nusantara</span> <span class="text-white/40 text-[10px]">Tracer Study</span>
-      </div>
-     </div>
-     <nav class="flex-1 py-4 px-3 space-y-1" role="navigation" aria-label="Main Navigation">
-         <button id="nav-dashboard" class="sidebar-link active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="dashboard"> <i data-lucide="layout-dashboard" style="width:18px;height:18px;"></i> Dashboard </button> 
-         <button id="nav-alumni" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="alumni"> <i data-lucide="users" style="width:18px;height:18px;"></i> Alumni Management </button> 
-         <button id="nav-verification" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="verification"> <i data-lucide="check-circle" style="width:18px;height:18px;"></i> Manual Verification <span id="verif-badge" class="ml-auto bg-amber-400 text-navy-900 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">0</span> </button>
-      <div class="pt-4 pb-2 px-3"><span class="text-white/30 text-[10px] uppercase tracking-wider font-semibold">System</span>
-      </div>
-      <button id="nav-settings" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm" data-nav="settings"> <i data-lucide="settings" style="width:18px;height:18px;"></i> Settings </button> 
-      <button class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 text-sm"> <i data-lucide="help-circle" style="width:18px;height:18px;"></i> Help &amp; Docs </button>
-     </nav>
-     <div class="p-4 border-t border-white/10 flex items-center gap-3">
-      <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-xs font-semibold">AD</div>
-      <div class="flex-1 min-w-0"><span class="text-white text-xs font-medium block truncate">Admin User</span> <span class="text-white/40 text-[10px]">Super Admin</span></div>
-      <button id="btn-logout" class="text-white/40 hover:text-white transition" title="Logout"> <i data-lucide="log-out" style="width:16px;height:16px;"></i> </button>
-     </div>
-    </aside>
-    
-    <main class="flex-1 overflow-y-auto" role="main">
-     <header class="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-navy-100 px-6 py-3 flex items-center justify-between">
-      <div>
-       <h2 class="font-semibold text-navy-800 text-lg" id="page-title">Dashboard</h2>
-       <p class="text-navy-400 text-xs" id="page-subtitle">Overview of alumni tracking progress</p>
-      </div>
-      <div class="flex items-center gap-3">
-       <button class="relative p-2 rounded-lg hover:bg-navy-50 transition text-navy-400"> 
-           <i data-lucide="bell" style="width:18px;height:18px;"></i> <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span> 
-       </button>
-      </div>
-     </header>
-     
-     <section id="page-dashboard" class="p-6 space-y-6">
-      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up">
-        <div class="flex items-center justify-between mb-3">
-         <div class="w-10 h-10 rounded-xl bg-navy-50 flex items-center justify-center text-navy-500"><i data-lucide="users" style="width:20px;height:20px;"></i></div>
-        </div>
-        <div class="text-2xl font-bold text-navy-800" id="stat-total">0</div>
-        <div class="text-xs text-navy-400 mt-0.5">Total Alumni</div>
-        <div class="mt-3 h-1.5 bg-navy-100 rounded-full overflow-hidden">
-         <div class="h-full bg-navy-500 rounded-full" style="width:100%"></div>
-        </div>
-       </div>
-       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up anim-delay-1">
-        <div class="flex items-center justify-between mb-3">
-         <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><i data-lucide="user-check" style="width:20px;height:20px;"></i></div>
-        </div>
-        <div class="text-2xl font-bold text-navy-800" id="stat-identified">0</div>
-        <div class="text-xs text-navy-400 mt-0.5">Identified Alumni</div>
-        <div class="mt-3 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
-         <div class="h-full bg-emerald-500 rounded-full" style="width:0%" id="bar-identified"></div>
-        </div>
-       </div>
-       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up anim-delay-2">
-        <div class="flex items-center justify-between mb-3">
-         <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600"><i data-lucide="alert-circle" style="width:20px;height:20px;"></i></div>
-        </div>
-        <div class="text-2xl font-bold text-navy-800" id="stat-pending">0</div>
-        <div class="text-xs text-navy-400 mt-0.5">Need Manual Verification</div>
-        <div class="mt-3 h-1.5 bg-amber-100 rounded-full overflow-hidden">
-         <div class="h-full bg-amber-500 rounded-full" style="width:0%" id="bar-pending"></div>
-        </div>
-       </div>
-       <div class="bg-white rounded-2xl p-5 border border-navy-100 anim-fade-up anim-delay-3">
-        <div class="flex items-center justify-between mb-3">
-         <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500"><i data-lucide="user-x" style="width:20px;height:20px;"></i></div>
-        </div>
-        <div class="text-2xl font-bold text-navy-800" id="stat-notfound">0</div>
-        <div class="text-xs text-navy-400 mt-0.5">Not Found</div>
-        <div class="mt-3 h-1.5 bg-red-100 rounded-full overflow-hidden">
-         <div class="h-full bg-red-400 rounded-full" style="width:0%" id="bar-notfound"></div>
-        </div>
-       </div>
-      </div>
-      
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-       <div class="bg-white rounded-2xl p-6 border border-navy-100 anim-fade-up anim-delay-3">
-        <h3 class="font-semibold text-navy-700 text-sm mb-4">Tracking Progress</h3>
-        <div class="flex items-center justify-center">
-         <svg width="160" height="160" viewbox="0 0 160 160">
-            <circle cx="80" cy="80" r="64" fill="none" stroke="#dce4f2" stroke-width="12" /> 
-            <circle cx="80" cy="80" r="64" fill="none" stroke="#1e3a6e" stroke-width="12" stroke-linecap="round" class="progress-ring-circle" id="progress-circle" stroke-dasharray="402" stroke-dashoffset="402" /> 
-            <text x="80" y="74" text-anchor="middle" fill="#0f2041" font-size="28" font-weight="700" font-family="DM Sans" id="progress-percent">0%</text> 
-            <text x="80" y="94" text-anchor="middle" fill="#8da8d6" font-size="11" font-family="DM Sans">Identified</text>
-         </svg>
-        </div>
-        <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
-         <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-navy-600"></span><span class="text-navy-500">Identified</span><span class="ml-auto font-semibold text-navy-700" id="leg-identified">0</span>
-         </div>
-         <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span class="text-navy-500">Pending</span><span class="ml-auto font-semibold text-navy-700" id="leg-pending">0</span>
-         </div>
-         <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span><span class="text-navy-500">Not Found</span><span class="ml-auto font-semibold text-navy-700" id="leg-notfound">0</span>
-         </div>
-        </div>
-       </div>
-       
-       <div class="bg-white rounded-2xl p-6 border border-navy-100 lg:col-span-2 anim-fade-up anim-delay-4">
-        <div class="flex items-center justify-between mb-5">
-         <h3 class="font-semibold text-navy-700 text-sm">Alumni by Graduation Year</h3>
-        </div>
-        <div class="flex items-end gap-3 h-40" id="chart-container"></div>
-       </div>
-      </div>
-      
-      <div class="bg-white rounded-2xl p-6 border border-navy-100 anim-fade-up anim-delay-5">
-       <h3 class="font-semibold text-navy-700 text-sm mb-4">Recent Activity</h3>
-       <div class="space-y-3" id="recent-activity-list"></div>
-      </div>
-     </section>
-     
-     <section id="page-alumni" class="p-6 space-y-4 hidden">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-       <div class="flex items-center gap-2">
-           <div class="relative">
-               <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-navy-300" style="width:14px;height:14px;"></i> 
-               <input type="text" id="search-alumni" placeholder="Search name or NIM..." class="text-sm border border-navy-200 rounded-lg pl-9 pr-3 py-2 text-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-300/40 w-48">
-           </div>
-           <select id="filter-program" class="text-sm border border-navy-200 rounded-lg px-3 py-2 text-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-300/40"> 
-               <option value="All">All Programs</option> 
-               <option value="Informatika">Informatika</option> 
-               <option value="Sistem Informasi">Sistem Informasi</option> 
-               <option value="Teknik Elektro">Teknik Elektro</option> 
-               <option value="Computer Science">Computer Science</option> 
-               <option value="Business Administration">Business Administration</option> 
-           </select> 
-           <select id="filter-year" class="text-sm border border-navy-200 rounded-lg px-3 py-2 text-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-300/40"> 
-               <option value="All">All Years</option> 
-           </select> 
-           <select id="filter-status" class="text-sm border border-navy-200 rounded-lg px-3 py-2 text-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-300/40"> 
-               <option value="All">All Status</option> 
-               <option value="Identified">Identified</option> 
-               <option value="Pending">Pending</option> 
-               <option value="Not Found">Not Found</option> 
-           </select>
-       </div>
-       <div class="flex items-center gap-2">
-           <button id="btn-open-track-all" class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-xl transition font-medium"> <i data-lucide="radar" style="width:16px;height:16px;"></i> Track All Pending </button> 
-           <button id="btn-open-add" class="flex items-center gap-1.5 px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm rounded-xl transition font-medium"> <i data-lucide="plus" style="width:16px;height:16px;"></i> Add Alumni </button>
-       </div>
-      </div>
-      <div class="bg-white rounded-2xl border border-navy-100 overflow-hidden">
-       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-         <thead>
-          <tr class="bg-navy-50/60 text-navy-500 text-xs uppercase tracking-wider">
-           <th class="text-left px-5 py-3 font-semibold">Name</th>
-           <th class="text-left px-5 py-3 font-semibold">NIM</th>
-           <th class="text-left px-5 py-3 font-semibold">Study Program</th>
-           <th class="text-left px-5 py-3 font-semibold">Grad Year</th>
-           <th class="text-left px-5 py-3 font-semibold">Status</th>
-           <th class="text-left px-5 py-3 font-semibold">Confidence</th>
-           <th class="text-right px-5 py-3 font-semibold">Actions</th>
-          </tr>
-         </thead>
-         <tbody id="alumni-table-body" class="divide-y divide-navy-100"></tbody>
-        </table>
-       </div>
-       <div class="flex items-center justify-between px-5 py-3 border-t border-navy-100 text-xs text-navy-400">
-           <span id="table-count-text">Data loaded live from Firebase</span>
-       </div>
-      </div>
-     </section>
-     
-     <section id="page-verification" class="p-6 space-y-4 hidden">
-      <div class="flex items-center justify-between">
-       <div>
-        <p class="text-navy-400 text-sm">Review and confirm profile matches for alumni that couldn't be automatically verified.</p>
-       </div><span class="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full" id="verif-page-badge">0 Pending Reviews</span>
-      </div>
-      <div id="verification-list" class="space-y-4"></div>
-     </section>
+    .toast-error {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
 
-     <section id="page-settings" class="p-6 space-y-6 hidden">
-      <div class="bg-white rounded-2xl p-6 border border-navy-100 anim-fade-up">
-       <h3 class="font-semibold text-navy-700 text-base mb-4 flex items-center gap-2"><i data-lucide="sliders" style="width:18px;height:18px;"></i> Algorithm Parameters</h3>
-       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    .toast-info {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- LOGIN PAGE -->
+  <div id="login-page" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <i data-lucide="graduation-cap" class="w-8 h-8 text-white"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">Alumni Tracer</h1>
+        <p class="text-sm text-gray-500 mt-1">Sign in to access the dashboard</p>
+      </div>
+      <div id="login-error"
+        class="hidden bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4"></div>
+      <form id="login-form" class="space-y-4">
         <div>
-         <label class="block text-xs font-medium text-navy-500 mb-1">High Confidence Score (&ge;)</label>
-         <input type="number" id="set-high" value="80" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40">
-         <p class="text-[10px] text-navy-400 mt-1">Scores above this will be automatically marked as 'Identified'.</p>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input id="login-email" type="email" required placeholder="admin@alumni.ac.id"
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent">
         </div>
         <div>
-         <label class="block text-xs font-medium text-navy-500 mb-1">Medium Confidence Score (&ge;)</label>
-         <input type="number" id="set-med" value="50" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40">
-         <p class="text-[10px] text-navy-400 mt-1">Scores above this will be marked as 'Pending' (needs review).</p>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input id="login-password" type="password" required placeholder="••••••••"
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent">
         </div>
-       </div>
-       
-       <hr class="my-6 border-navy-100">
-       
-       <h3 class="font-semibold text-navy-700 text-base mb-4 flex items-center gap-2"><i data-lucide="database" style="width:18px;height:18px;"></i> Active Data Sources</h3>
-       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
-         <input type="checkbox" checked class="custom-check rounded" id="src-linkedin">
-         <span class="text-sm text-navy-600 font-medium">LinkedIn</span>
-        </label>
-        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
-         <input type="checkbox" checked class="custom-check rounded" id="src-github">
-         <span class="text-sm text-navy-600 font-medium">GitHub</span>
-        </label>
-        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
-         <input type="checkbox" checked class="custom-check rounded" id="src-scholar">
-         <span class="text-sm text-navy-600 font-medium">Google Scholar</span>
-        </label>
-        <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition">
-         <input type="checkbox" checked class="custom-check rounded" id="src-pddikti">
-         <span class="text-sm text-navy-600 font-medium">PDDikti</span>
-        </label>
-       </div>
-       
-       <div class="flex justify-end">
-        <button id="btn-save-settings" class="flex items-center gap-2 px-6 py-2.5 bg-navy-600 hover:bg-navy-700 text-white rounded-xl text-sm font-medium transition">
-         <i data-lucide="save" style="width:16px;height:16px;"></i> Save Preferences
+        <button type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm shadow-sm">
+          Sign In
         </button>
-       </div>
-      </div>
-     </section>
-    </main>
-   </div>
+      </form>
+      <p class="text-center text-xs text-gray-400 mt-6">© 2026 Alumni Tracer Study System</p>
+    </div>
   </div>
-  
-  <div id="modal-add" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
-   <div class="bg-white rounded-2xl w-full max-w-lg mx-4 p-6 anim-scale-in" role="dialog" aria-label="Add Alumni">
-    <div class="flex items-center justify-between mb-5">
-     <h3 class="font-semibold text-navy-800 text-lg">Add New Alumni</h3><button id="btn-close-add" class="text-navy-300 hover:text-navy-600 transition"><i data-lucide="x" style="width:20px;height:20px;"></i></button>
+
+  <!-- MAIN APP -->
+  <div id="main-app" class="hidden">
+    <div class="flex min-h-screen">
+      <aside class="w-64 gradient-bg flex flex-col flex-shrink-0">
+        <div class="px-6 py-5 border-b border-white/10">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+              <i data-lucide="graduation-cap" class="w-5 h-5 text-white"></i>
+            </div>
+            <div>
+              <p class="text-white font-bold text-sm leading-none">Alumni Tracer</p>
+              <p class="text-white/60 text-xs mt-0.5">Study System</p>
+            </div>
+          </div>
+        </div>
+        <nav class="flex-1 px-3 py-4 space-y-1">
+          <button onclick="showSection('dashboard')" data-section="dashboard"
+            class="nav-item active-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors text-sm font-medium">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 flex-shrink-0"></i> Dashboard
+          </button>
+          <button onclick="showSection('alumni')" data-section="alumni"
+            class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors text-sm font-medium">
+            <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i> Data Alumni
+          </button>
+          <button onclick="showSection('enrichment-view')" data-section="enrichment-view"
+            class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors text-sm font-medium">
+            <i data-lucide="search" class="w-4 h-4 flex-shrink-0"></i> Enrichment
+            <span class="ml-auto bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full">Baru</span>
+          </button>
+          <button onclick="showSection('verification')" data-section="verification"
+            class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors text-sm font-medium">
+            <i data-lucide="shield-check" class="w-4 h-4 flex-shrink-0"></i> Verifikasi Manual
+          </button>
+        </nav>
+        <div class="px-3 py-4 border-t border-white/10">
+          <button onclick="handleLogout()"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white transition-colors text-sm">
+            <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
+          </button>
+        </div>
+      </aside>
+
+      <main class="flex-1 overflow-auto bg-gray-50">
+        <header class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+          <div>
+            <h1 id="page-title" class="text-lg font-bold text-gray-900">Dashboard</h1>
+            <p class="text-xs text-gray-400">Alumni Tracer Study System</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-400 hidden sm:block" id="current-user-email"></span>
+            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+              <i data-lucide="user" class="w-4 h-4 text-white"></i>
+            </div>
+          </div>
+        </header>
+
+        <!-- DASHBOARD -->
+        <section id="section-dashboard" class="p-6 space-y-6">
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <p class="text-xs text-gray-500 font-medium">Total Alumni</p>
+              <p id="stat-total" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <p class="text-xs text-gray-500 font-medium">Identified</p>
+              <p id="stat-identified" class="text-3xl font-bold text-emerald-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <p class="text-xs text-gray-500 font-medium">Need Verification</p>
+              <p id="stat-pending" class="text-3xl font-bold text-amber-500 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <p class="text-xs text-gray-500 font-medium">Not Found</p>
+              <p id="stat-not-found" class="text-3xl font-bold text-red-500 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 col-span-2 lg:col-span-1">
+              <p class="text-xs text-purple-600 font-medium">Data Enriched</p>
+              <p id="stat-enriched" class="text-3xl font-bold text-purple-600 mt-1">0</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 text-blue-600"></i> Tracking Progress
+              </h3>
+              <div class="space-y-3">
+                <div>
+                  <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Identified</span><span
+                      id="stat-identified-2">0</span></div>
+                  <div class="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="bar-identified" class="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                      style="width:0%"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Pending</span><span
+                      id="stat-pending-2">0</span></div>
+                  <div class="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="bar-pending" class="h-full bg-amber-400 rounded-full transition-all duration-700"
+                      style="width:0%"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Not Found</span><span
+                      id="stat-not-found-2">0</span></div>
+                  <div class="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="bar-not-found" class="h-full bg-red-400 rounded-full transition-all duration-700"
+                      style="width:0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <i data-lucide="activity" class="w-4 h-4 text-blue-600"></i> Recent Activity
+              </h3>
+              <div id="recent-activity-list" class="space-y-1"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ALUMNI -->
+        <section id="section-alumni" class="p-6 hidden space-y-5">
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <h2 class="text-lg font-bold text-gray-900">Data Alumni</h2>
+            <div class="flex gap-2 flex-wrap">
+              <!-- ✅ Pakai id, listener dipasang via module -->
+              <button id="btn-import-excel"
+                class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                <i data-lucide="upload" class="w-4 h-4"></i> Import Excel
+              </button>
+              <button onclick="document.getElementById('add-alumni-modal').classList.remove('hidden')"
+                class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                <i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Alumni
+              </button>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <input id="search-alumni" type="search" placeholder="Cari nama / NIM..."
+                class="col-span-2 sm:col-span-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300">
+              <select id="filter-program"
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                <option value="All">Semua Prodi</option>
+              </select>
+              <select id="filter-year"
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                <option value="All">Semua Tahun</option>
+              </select>
+              <select id="filter-status"
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                <option value="All">Semua Status</option>
+                <option value="Identified">Identified</option>
+                <option value="Pending">Pending</option>
+                <option value="Not Found">Not Found</option>
+              </select>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100">
+              <p id="table-count-text" class="text-xs text-gray-400">Memuat data...</p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nama
+                      Alumni</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">NIM</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Program
+                      Studi</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tahun
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tempat
+                      Kerja</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="alumni-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ENRICHMENT VIEW -->
+        <section id="section-enrichment-view" class="p-6 hidden space-y-5">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Enrichment Data Alumni</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Lengkapi data sosial media & pekerjaan alumni secara semi-otomatis
+            </p>
+          </div>
+          <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+            <h3 class="font-semibold text-blue-800 text-sm mb-2 flex items-center gap-2">
+              <i data-lucide="info" class="w-4 h-4"></i> Cara Penggunaan Fitur Enrichment
+            </h3>
+            <ol class="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+              <li>Pergi ke menu <strong>Data Alumni</strong></li>
+              <li>Klik tombol <strong class="bg-purple-600 text-white px-2 py-0.5 rounded text-xs">Enrichment</strong>
+                pada baris alumni</li>
+              <li>Gunakan tombol pencarian otomatis untuk buka LinkedIn, IG, FB, TikTok</li>
+              <li>Salin URL profil yang ditemukan ke dalam form</li>
+              <li>Isi data pekerjaan — status PNS/Swasta/Wirausaha akan otomatis terdeteksi</li>
+              <li>Klik <strong>Simpan Data</strong> untuk menyimpan ke database</li>
+            </ol>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
+              <i data-lucide="linkedin" class="w-6 h-6 text-blue-700 mx-auto mb-2"></i>
+              <p id="count-linkedin" class="text-2xl font-bold text-gray-900">-</p>
+              <p class="text-xs text-gray-500 mt-0.5">Punya LinkedIn</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
+              <i data-lucide="mail" class="w-6 h-6 text-red-500 mx-auto mb-2"></i>
+              <p id="count-email" class="text-2xl font-bold text-gray-900">-</p>
+              <p class="text-xs text-gray-500 mt-0.5">Punya Email</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
+              <i data-lucide="briefcase" class="w-6 h-6 text-emerald-600 mx-auto mb-2"></i>
+              <p id="count-tempat-kerja" class="text-2xl font-bold text-gray-900">-</p>
+              <p class="text-xs text-gray-500 mt-0.5">Data Kerja Terisi</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
+              <i data-lucide="phone" class="w-6 h-6 text-amber-500 mx-auto mb-2"></i>
+              <p id="count-nohp" class="text-2xl font-bold text-gray-900">-</p>
+              <p class="text-xs text-gray-500 mt-0.5">Punya No. HP</p>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100">
+              <p class="text-sm font-semibold text-gray-700">Ringkasan Data Enrichment per Alumni</p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nama</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">LinkedIn</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">IG</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Email</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">HP</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tempat Kerja</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status Kerja</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Kelengkapan</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="enrichment-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VERIFIKASI -->
+        <section id="section-verification" class="p-6 hidden">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-1">Verifikasi Manual</h2>
+            <p class="text-sm text-gray-500 mb-5">Alumni dengan status Pending menunggu konfirmasi admin</p>
+            <div id="verification-list"></div>
+          </div>
+        </section>
+      </main>
     </div>
-    <form id="form-add-alumni" class="space-y-4">
-     <div class="grid grid-cols-2 gap-4">
-      <div><label class="block text-xs font-medium text-navy-500 mb-1">Full Name</label> <input id="add-name" type="text" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40" placeholder="Enter full name" required>
-      </div>
-      <div><label class="block text-xs font-medium text-navy-500 mb-1">Student ID (NIM)</label> <input id="add-nim" type="text" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40" placeholder="e.g. 19103001" required>
-      </div>
-     </div>
-     <div class="grid grid-cols-2 gap-4">
-      <div><label class="block text-xs font-medium text-navy-500 mb-1">Study Program</label> <select id="add-program" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40"> <option value="Informatika">Informatika</option> <option value="Sistem Informasi">Sistem Informasi</option> <option value="Teknik Elektro">Teknik Elektro</option> <option value="Computer Science">Computer Science</option> <option value="Business Administration">Business Administration</option> </select>
-      </div>
-      <div><label class="block text-xs font-medium text-navy-500 mb-1">Graduation Year</label> <input id="add-year" type="number" class="w-full px-3 py-2.5 rounded-xl border border-navy-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-300/40" placeholder="2023" required>
-      </div>
-     </div>
-     <div class="flex justify-end gap-2 pt-2"><button type="button" id="btn-cancel-add" class="px-4 py-2.5 border border-navy-200 rounded-xl text-sm text-navy-600 hover:bg-navy-50 transition">Cancel</button> <button type="submit" class="px-5 py-2.5 bg-navy-600 hover:bg-navy-700 text-white rounded-xl text-sm font-medium transition">Save Alumni</button>
-     </div>
-    </form>
-   </div>
   </div>
-  
-  <div id="modal-track" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
-   <div class="bg-white rounded-2xl w-full max-w-md mx-4 p-6 anim-scale-in" role="dialog" aria-label="Track Alumni">
-    <div class="flex items-center justify-between mb-5">
-     <h3 class="font-semibold text-navy-800 text-lg">Track Alumni</h3><button id="btn-close-track" class="text-navy-300 hover:text-navy-600 transition"><i data-lucide="x" style="width:20px;height:20px;"></i></button>
+
+  <!-- Modal Tambah Alumni -->
+  <div id="add-alumni-modal"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-gray-900">Tambah Alumni Baru</h2>
+        <button onclick="document.getElementById('add-alumni-modal').classList.add('hidden')"
+          class="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+          <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+        </button>
+      </div>
+      <form id="add-alumni-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+          <input id="input-name" type="text" required placeholder="Nama lengkap alumni"
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">NIM</label>
+          <input id="input-nim" type="text" required placeholder="Nomor Induk Mahasiswa"
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
+          <select id="input-program" required
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+            <option value="">-- Pilih Prodi --</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tahun Masuk</label>
+          <select id="input-year" required
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+            <option value="">-- Pilih Tahun --</option>
+          </select>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="button" onclick="document.getElementById('add-alumni-modal').classList.add('hidden')"
+            class="flex-1 py-2.5 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">Batal</button>
+          <button type="submit"
+            class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            Tambah Alumni
+          </button>
+        </div>
+      </form>
     </div>
-    <p class="text-sm text-navy-400 mb-4">Start an automated scan to identify and locate alumni through available data sources.</p>
-    <div class="space-y-3 mb-5"><label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition"> <input type="checkbox" checked class="custom-check rounded"><span class="text-sm text-navy-600">LinkedIn Profile Matching</span> </label> <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition"> <input type="checkbox" checked class="custom-check rounded"><span class="text-sm text-navy-600">Public Employment Database</span> </label> <label class="flex items-center gap-3 p-3 rounded-xl border border-navy-200 hover:border-navy-300 cursor-pointer transition"> <input type="checkbox" class="custom-check rounded"><span class="text-sm text-navy-600">Academic Publication Index</span> </label>
-    </div>
-    <div class="flex justify-end gap-2"><button type="button" id="btn-cancel-track" class="px-4 py-2.5 border border-navy-200 rounded-xl text-sm text-navy-600 hover:bg-navy-50 transition">Cancel</button> <button type="button" id="btn-start-track" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition flex items-center gap-1.5"> <i data-lucide="radar" style="width:15px;height:15px;"></i> Start Tracking </button>
-    </div>
-   </div>
   </div>
-  
-  <div id="toast-container" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
-  <script type="module" src="./js/main.js"></script>
- </body>
+
+  <div id="toast-container"></div>
+
+  <!-- ✅ FIREBASE AUTH — import auth dari firebase.js, tidak ada initializeApp baru -->
+  <script type="module">
+    import { auth } from "./firebase.js";
+    import { signInWithEmailAndPassword, onAuthStateChanged, signOut }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.getElementById("login-page").classList.add("hidden");
+        document.getElementById("main-app").classList.remove("hidden");
+        const emailEl = document.getElementById("current-user-email");
+        if (emailEl) emailEl.textContent = user.email;
+      } else {
+        document.getElementById("login-page").classList.remove("hidden");
+        document.getElementById("main-app").classList.add("hidden");
+      }
+      if (window.lucide) lucide.createIcons();
+    });
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+      const errEl = document.getElementById("login-error");
+      errEl.classList.add("hidden");
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch {
+        errEl.textContent = "Email atau password salah. Silakan coba lagi.";
+        errEl.classList.remove("hidden");
+      }
+    });
+
+    window.handleLogout = async function () {
+      await signOut(auth);
+    };
+  </script>
+
+  <!-- NAVIGATION -->
+  <script>
+    const SECTIONS = ["dashboard", "alumni", "enrichment-view", "verification"];
+    const TITLES = { "dashboard": "Dashboard", "alumni": "Data Alumni", "enrichment-view": "Enrichment Data", "verification": "Verifikasi Manual" };
+
+    window.showSection = function (name) {
+      SECTIONS.forEach(s => { const el = document.getElementById("section-" + s); if (el) el.classList.toggle("hidden", s !== name); });
+      const titleEl = document.getElementById("page-title");
+      if (titleEl) titleEl.textContent = TITLES[name] || name;
+      document.querySelectorAll(".nav-item").forEach(btn => {
+        const active = btn.dataset.section === name;
+        btn.classList.toggle("active-nav", active);
+        btn.classList.toggle("text-white", active);
+        btn.classList.toggle("text-white/80", !active);
+      });
+      if (name === "enrichment-view") renderEnrichmentSummary();
+      if (window.lucide) lucide.createIcons();
+    };
+
+    window.renderEnrichmentSummary = function () {
+      if (!window.currentAlumniData) return;
+      const data = window.currentAlumniData;
+      const tbody = document.getElementById("enrichment-table-body");
+      if (!tbody) return;
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      set("count-linkedin", data.filter(a => a.enrichment?.linkedin).length);
+      set("count-email", data.filter(a => a.enrichment?.email).length);
+      set("count-tempat-kerja", data.filter(a => a.enrichment?.tempatKerja).length);
+      set("count-nohp", data.filter(a => a.enrichment?.noHp).length);
+      const check = val => val
+        ? `<span class="text-emerald-500 flex justify-center"><i data-lucide="check-circle" class="w-4 h-4"></i></span>`
+        : `<span class="text-gray-200 flex justify-center"><i data-lucide="circle" class="w-4 h-4"></i></span>`;
+      tbody.innerHTML = data.map(a => {
+        const enr = a.enrichment || {};
+        const pct = a.confidence || 0;
+        const barColor = pct >= 70 ? "bg-emerald-500" : pct >= 30 ? "bg-amber-400" : "bg-gray-200";
+        const statusBadge = enr.statusKerja
+          ? `<span class="text-xs font-semibold px-2 py-1 rounded-full ${enr.statusKerja === "PNS" ? "bg-blue-100 text-blue-700" : enr.statusKerja === "Wirausaha" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-700"}">${enr.statusKerja}</span>`
+          : `<span class="text-gray-300 text-xs">-</span>`;
+        return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+        <td class="px-4 py-3"><p class="font-medium text-gray-900 text-sm">${a.name}</p><p class="text-xs text-gray-400">${a.nim}</p></td>
+        <td class="px-4 py-3">${check(enr.linkedin)}</td>
+        <td class="px-4 py-3">${check(enr.instagram)}</td>
+        <td class="px-4 py-3">${check(enr.email)}</td>
+        <td class="px-4 py-3">${check(enr.noHp)}</td>
+        <td class="px-4 py-3 text-sm text-gray-700">${enr.tempatKerja || '<span class="text-gray-300 italic text-xs">-</span>'}</td>
+        <td class="px-4 py-3 text-center">${statusBadge}</td>
+        <td class="px-4 py-3">
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden w-16">
+              <div class="h-full ${barColor} rounded-full" style="width:${pct}%"></div>
+            </div>
+            <span class="text-xs text-gray-500 w-8 text-right">${pct}%</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="openEnrichmentModal('${a.id}'); showSection('alumni')"
+            class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg transition-colors">Edit</button>
+        </td>
+      </tr>`;
+      }).join("");
+      if (window.lucide) lucide.createIcons();
+    };
+
+    document.addEventListener("alumni-loaded", (e) => { window.currentAlumniData = e.detail; });
+    document.addEventListener("DOMContentLoaded", () => { if (window.lucide) lucide.createIcons(); });
+  </script>
+
+  <!-- ✅ LOAD MAIN + IMPORT EXCEL — listener tombol dipasang setelah module siap -->
+  <script type="module">
+    import "./main.js";
+    import "./import-excel.js";
+
+    document.getElementById("btn-import-excel")?.addEventListener("click", () => {
+      if (window.openImportModal) window.openImportModal();
+    });
+  </script>
+
+  <script>
+    // ===== DAFTAR PROGRAM STUDI =====
+    const PROGRAM_LIST = [
+      "Akuntansi", "Magister - Sosiologi Pedesaan", "Magister - Manajemen",
+      "Pendidikan Agama Islam (Tarbiyah)", "Ahwal Al-Syakhsyiyyah (Syari'ah)",
+      "Ilmu Ekonomi dan Studi Pembangunan", "Manajemen", "Ilmu Hukum",
+      "Ilmu Kesejahteraan Sosial", "Ilmu Komunikasi", "Ilmu Pemerintahan",
+      "Pendidikan Matematika", "Pendidikan Bahasa dan Sastra Indonesia",
+      "Pendidikan Bahasa Inggris", "Pendidikan Biologi",
+      "Sosial Ekonomi Pertanian", "Budidaya Pertanian", "Produksi Ternak",
+      "Teknologi Industri Peternakan", "Psikologi", "Teknik Mesin", "Teknik Sipil",
+      "Teknologi Pengolahan Hasil Pertanian", "Perikanan", "Teknik Elektro",
+      "Teknik Industri", "D-3 Teknik Elektro", "Budidaya Perairan",
+      "D-3 Keuangan dan Perbankan", "Magister - Ilmu Agama Islam",
+      "Teknologi Hasil Pertanian", "Sosiologi", "Budidaya Hutan",
+      "Pendidikan Pancasila dan Kewarganegaraan (PPKn)", "Magister - Agribisnis",
+      "Pendidikan Dokter", "Magister - Ilmu Hukum",
+      "Magister - Kebijakan dan Pengembangan Pendidikan", "Agronomi",
+      "Sosial Ekonomi Pertanian (Agribisnis)", "Magister - Sosiologi",
+      "Pendidikan Bahasa, Sastra Indonesia dan Bahasa Daerah", "Profesi Dokter",
+      "Pendidikan Bahasa, Sastra Indonesia dan Daerah", "Ekonomi Pembangunan",
+      "Magister - Psikologi", "Ilmu Hubungan Internasional", "Teknik Informatika",
+      "Magister - Pendidikan Profesi Psikologi",
+      "PJJ Pendidikan Guru Sekolah Dasar", "Farmasi", "Ilmu Keperawatan",
+      "D-3 Keperawatan", "Agroteknologi", "Agroteknologi / Agronomi",
+      "Ilmu dan Teknologi Pangan", "Pendidikan Guru Sekolah Dasar",
+      "Doktor - Ilmu Sosial dan Ilmu Politik", "Magister - Psikologi Profesi",
+      "Pendidikan Profesi Ners", "Kehutanan", "Peternakan",
+      "D-3 Teknik Elektronika", "Agribisnis",
+      "Magister - Pendidikan Matematika",
+      "Magister - Pendidikan Bahasa dan Sastra Indonesia",
+      "Doktor - Pendidikan Agama Islam",
+      "Magister - Pendidikan Bahasa Inggris", "Ekonomi Syari'ah", "Fisioterapi",
+      "Kedokteran", "Keperawatan", "Profesi Ners", "Profesi Apoteker",
+      "Profesi Insinyur", "Pendidikan Bahasa Arab",
+      "Magister - Pendidikan Bahasa Indonesia", "Pendidikan Agama Islam",
+      "Ahwal Al-Syakhshiyah", "Ekonomi Syariah", "Hubungan Internasional",
+      "Kesejahteraan Sosial", "Informatika", "Pendidikan Bahasa Indonesia",
+      "Pendidikan Pancasila dan Kewarganegaraan", "D-3 Teknologi Elektronika",
+      "D-3 Perbankan dan Keuangan", "Doktor - Sosiologi", "Doktor - Ilmu Pertanian",
+      "Magister - Hukum", "Hukum Keluarga Islam (Ahwal Syakhshiyyah)", "Hukum",
+      "Teknologi Pangan", "Akuakultur", "Magister - Pendidikan Agama Islam",
+      "Pendidikan Profesi Apoteker", "Magister - Pendidikan Biologi",
+      "Magister - Pedagogi", "Pendidikan Profesi Dokter",
+      "Pendidikan Profesi Guru", "Pendidikan Profesi Fisioterapis",
+      "Magister - Akuntansi", "D-4 Agribisnis Unggas", "D-4 Bisnis Properti",
+      "Ilmu Pertanian", "Pendidikan"
+    ];
+
+    // Isi otomatis semua dropdown program studi
+    document.addEventListener("DOMContentLoaded", function () {
+      const filterProgram = document.getElementById("filter-program");
+      const inputProgram = document.getElementById("input-program");
+      const inputYear = document.getElementById("input-year");
+
+      if (filterProgram) {
+        filterProgram.innerHTML =
+          '<option value="All">Semua Prodi</option>' +
+          PROGRAM_LIST.map(p => `<option value="${p}">${p}</option>`).join("");
+      }
+
+      if (inputProgram) {
+        inputProgram.innerHTML =
+          '<option value="">-- Pilih Prodi --</option>' +
+          PROGRAM_LIST.map(p => `<option value="${p}">${p}</option>`).join("");
+      }
+
+      if (inputYear) {
+        const currentYear = new Date().getFullYear();
+        // Generate tahun dari 1990 sampai tahun sekarang, urutan terbaru dulu
+        for (let y = currentYear; y >= 1986; y--) {
+          const opt = document.createElement("option");
+          opt.value = y;
+          opt.textContent = y;
+          inputYear.appendChild(opt);
+        }
+      }
+    });
+  </script>
+
+</body>
+
 </html>
