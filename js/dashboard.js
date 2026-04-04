@@ -1,9 +1,13 @@
-// Mengambil log lama dari localStorage (atau buat baru jika kosong)
+// dashboard.js
+
+// ===== RECENT ACTIVITY =====
 let activities = JSON.parse(localStorage.getItem("alumniActivities")) || [
   {
-    msg: "Sistem berhasil dimuat",
-    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    icon: "check", color: "text-emerald-600", bg: "bg-emerald-50"
+    msg:   "Sistem berhasil dimuat",
+    time:  new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    icon:  "check",
+    color: "text-emerald-600",
+    bg:    "bg-emerald-50"
   }
 ];
 
@@ -19,39 +23,57 @@ export function renderActivities() {
   const container = document.getElementById("recent-activity-list");
   if (!container) return;
   container.innerHTML = activities.map(a => `
-    <div class="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
-      <div class="flex-shrink-0 w-7 h-7 rounded-full ${a.bg} flex items-center justify-center mt-0.5">
+    <div class="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+      <div class="w-7 h-7 rounded-full ${a.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
         <i data-lucide="${a.icon}" class="w-3.5 h-3.5 ${a.color}"></i>
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm text-gray-700 leading-snug">${a.msg}</p>
         <p class="text-xs text-gray-400 mt-0.5">${a.time}</p>
       </div>
-    </div>`).join("");
+    </div>
+  `).join("");
   if (window.lucide) lucide.createIcons();
 }
 
-export function updateDashboard(alumniData) {
-  const total      = alumniData.length;
-  const identified = alumniData.filter(a => a.status === "Identified").length;
-  const pending    = alumniData.filter(a => a.status === "Pending").length;
-  const notFound   = alumniData.filter(a => a.status === "Not Found").length;
-  const enriched   = alumniData.filter(a => a.enrichment && Object.keys(a.enrichment).length > 0 && a.enrichment.tempatKerja).length;
 
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+// ===== UPDATE DASHBOARD STATS & PROGRESS BAR =====
+export function updateDashboard(alumniList = []) {
+  const total      = alumniList.length;
+  const identified = alumniList.filter(a => a.status === "Identified").length;
+  const pending    = alumniList.filter(a => a.status === "Pending").length;
+  const notFound   = alumniList.filter(a => a.status === "Not Found").length;
+  const enriched   = alumniList.filter(a =>
+    a.enrichment && Object.values(a.enrichment).some(v => v && v.toString().trim() !== "")
+  ).length;
+
+  // === Stat cards ===
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
   set("stat-total",      total);
   set("stat-identified", identified);
   set("stat-pending",    pending);
   set("stat-not-found",  notFound);
   set("stat-enriched",   enriched);
 
-  // Progress bars
-  const setWidth = (id, pct) => { const el = document.getElementById(id); if (el) el.style.width = pct + "%"; };
-  if (total > 0) {
-    setWidth("bar-identified", Math.round((identified / total) * 100));
-    setWidth("bar-pending",    Math.round((pending    / total) * 100));
-    setWidth("bar-not-found",  Math.round((notFound   / total) * 100));
-  }
+  // === Progress bars ===
+  const pct = (n) => total > 0 ? ((n / total) * 100).toFixed(1) : 0;
 
+  const barIdentified = document.getElementById("bar-identified");
+  const barPending    = document.getElementById("bar-pending");
+  const barNotFound   = document.getElementById("bar-not-found");
+
+  if (barIdentified) barIdentified.style.width = `${pct(identified)}%`;
+  if (barPending)    barPending.style.width    = `${pct(pending)}%`;
+  if (barNotFound)   barNotFound.style.width   = `${pct(notFound)}%`;
+
+  // === Angka di samping progress bar ===
+  set("stat-identified-2", identified);
+  set("stat-pending-2",    pending);
+  set("stat-not-found-2",  notFound);
+
+  // Render activity juga supaya tetap tampil
   renderActivities();
 }
