@@ -23,7 +23,7 @@ function updateFilterYearsOptions() {
   const filterYear = document.getElementById("filter-year");
   if (!filterYear) return;
   const uniqueYears = [...new Set(currentAlumniData.map(a => a.year))].filter(y => y).sort((a, b) => b - a);
-  const currentVal  = filterYear.value;
+  const currentVal = filterYear.value;
   filterYear.innerHTML =
     '<option value="All">Semua Tahun</option>' +
     uniqueYears.map(y => `<option value="${y}">${y}</option>`).join("");
@@ -37,22 +37,22 @@ document.getElementById("search-alumni")?.addEventListener("input", renderAlumni
 
 // ===== 3. RENDER TABEL ALUMNI =====
 function renderAlumniTable() {
-  const tbody     = document.getElementById("alumni-table-body");
+  const tbody = document.getElementById("alumni-table-body");
   const countText = document.getElementById("table-count-text");
   if (!tbody) return;
 
-  const fProg    = document.getElementById("filter-program")?.value || "All";
-  const fYear    = document.getElementById("filter-year")?.value    || "All";
-  const fStat    = document.getElementById("filter-status")?.value  || "All";
-  const searchVal = (document.getElementById("search-alumni")?.value || "").toLowerCase();
+  const fProg = document.getElementById("filter-program")?.value || "All";
+  const fYear = document.getElementById("filter-year")?.value || "All";
+  const fStat = document.getElementById("filter-status")?.value || "All";
+  const searchVal = (document.getElementById("search-alumni")?.value || "").toLowerCase().trim();
 
   const filteredData = currentAlumniData.filter(a => {
     if (fProg !== "All" && a.program !== fProg) return false;
     if (fYear !== "All" && a.year.toString() !== fYear) return false;
     if (fStat !== "All" && a.status !== fStat) return false;
     if (searchVal) {
-      const matchName = a.name?.toLowerCase().includes(searchVal);
-      const matchNim  = a.nim?.toLowerCase().includes(searchVal);
+      const matchName = a.name?.toLowerCase().trim().includes(searchVal);
+      const matchNim = a.nim?.toString().toLowerCase().trim().includes(searchVal);
       if (!matchName && !matchNim) return false;
     }
     return true;
@@ -74,14 +74,14 @@ function renderAlumniTable() {
 
   const statusColor = {
     "Identified": "bg-emerald-100 text-emerald-700",
-    "Pending":    "bg-amber-100 text-amber-700",
-    "Not Found":  "bg-red-100 text-red-700"
+    "Pending": "bg-amber-100 text-amber-700",
+    "Not Found": "bg-red-100 text-red-700"
   };
 
   tbody.innerHTML = filteredData.map(a => {
-    const enr            = a.enrichment || {};
-    const hasEnrichment  = enr.tempatKerja || enr.linkedin || enr.email;
-    const enrichBadge    = hasEnrichment
+    const enr = a.enrichment || {};
+    const hasEnrichment = enr.tempatKerja || enr.linkedin || enr.email;
+    const enrichBadge = hasEnrichment
       ? `<span class="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full ml-1">
            <i data-lucide="check-circle" class="w-3 h-3"></i> Enriched
          </span>`
@@ -175,7 +175,7 @@ async function handleTrackAlumni(id) {
     await updateStatus(id, result.status, result.confidence);
     const idx = currentAlumniData.findIndex(a => a.id === id);
     if (idx !== -1) {
-      currentAlumniData[idx].status     = result.status;
+      currentAlumniData[idx].status = result.status;
       currentAlumniData[idx].confidence = result.confidence;
     }
     window.currentAlumniData = currentAlumniData;
@@ -192,13 +192,13 @@ async function handleTrackAlumni(id) {
 
 // ===== 6. VERIFIKASI MANUAL =====
 async function confirmVerify(id, action) {
-  const status     = action === "approve" ? "Identified" : "Not Found";
+  const status = action === "approve" ? "Identified" : "Not Found";
   const confidence = action === "approve" ? 90 : 0;
   try {
     await updateStatus(id, status, confidence);
     const idx = currentAlumniData.findIndex(a => a.id === id);
     if (idx !== -1) {
-      currentAlumniData[idx].status     = status;
+      currentAlumniData[idx].status = status;
       currentAlumniData[idx].confidence = confidence;
     }
     window.currentAlumniData = currentAlumniData;
@@ -235,10 +235,10 @@ async function handleDeleteAlumni(id, name) {
 document.getElementById("add-alumni-form")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const data = {
-    name:    document.getElementById("input-name")?.value.trim(),
-    nim:     document.getElementById("input-nim")?.value.trim(),
+    name: document.getElementById("input-name")?.value.trim(),
+    nim: document.getElementById("input-nim")?.value.trim(),
     program: document.getElementById("input-program")?.value,
-    year:    document.getElementById("input-year")?.value,
+    year: document.getElementById("input-year")?.value,
   };
   if (!data.name || !data.nim || !data.program || !data.year) {
     showToast("Harap isi semua field", "error");
@@ -270,25 +270,25 @@ window.openEnrichmentModal = async function (alumniId) {
   const alumni = currentAlumniData.find(a => a.id === alumniId);
   if (!alumni) return;
 
-  const freshData          = await getAlumniById(alumniId);
+  const freshData = await getAlumniById(alumniId);
   const existingEnrichment = freshData?.enrichment || {};
-  const modalHTML          = renderEnrichmentModal(alumni, existingEnrichment);
+  const modalHTML = renderEnrichmentModal(alumni, existingEnrichment);
 
   document.getElementById("enrichment-modal")?.remove();
   document.body.insertAdjacentHTML("beforeend", modalHTML);
   if (window.lucide) lucide.createIcons();
 
   window.handleTempatKerjaInput = function (namaPerusahaan) {
-    const inferred    = inferStatusKerja(namaPerusahaan);
-    const statusEl    = document.getElementById("enr-status-kerja");
-    const badgeEl     = document.getElementById("infer-badge");
+    const inferred = inferStatusKerja(namaPerusahaan);
+    const statusEl = document.getElementById("enr-status-kerja");
+    const badgeEl = document.getElementById("infer-badge");
     if (statusEl && inferred) {
       statusEl.value = inferred;
       badgeEl?.classList.remove("hidden");
     }
     if (namaPerusahaan.trim().length > 2) {
-      const cl    = generateCompanySearchLinks(namaPerusahaan);
-      const area  = document.getElementById("company-search-area");
+      const cl = generateCompanySearchLinks(namaPerusahaan);
+      const area = document.getElementById("company-search-area");
       const links = document.getElementById("company-search-links");
       if (area && links) {
         area.classList.remove("hidden");
@@ -303,10 +303,19 @@ window.openEnrichmentModal = async function (alumniId) {
   };
 
   window.bukaGoogleMaps = function () {
-    const tempat = document.getElementById("enr-tempat-kerja")?.value || "";
-    const alamat = document.getElementById("enr-alamat-kerja")?.value || "";
-    const q      = encodeURIComponent(`${tempat} ${alamat}`.trim());
-    if (q) window.open(`https://www.google.com/maps/search/${q}`, "_blank");
+    const tempat = document.getElementById("enr-tempat-kerja")?.value?.trim() || "";
+    const alamat = document.getElementById("enr-alamat-kerja")?.value?.trim() || "";
+
+    // Gabungkan tempat + alamat, buang spasi ekstra
+    const query = [tempat, alamat].filter(v => v !== "").join(", ");
+
+    if (!query) {
+      showToast("Isi dulu Tempat Bekerja atau Alamat!", "error");
+      return;
+    }
+
+    const q = encodeURIComponent(query);
+    window.open(`https://www.google.com/maps/search/${q}`, "_blank");
   };
 
   if (existingEnrichment.tempatKerja) {
@@ -317,7 +326,7 @@ window.openEnrichmentModal = async function (alumniId) {
 window.closeEnrichmentModal = function () {
   const modal = document.getElementById("enrichment-modal");
   if (modal) {
-    modal.style.opacity    = "0";
+    modal.style.opacity = "0";
     modal.style.transition = "opacity 0.2s ease";
     setTimeout(() => modal.remove(), 220);
   }
@@ -326,7 +335,7 @@ window.closeEnrichmentModal = function () {
 window.saveEnrichment = async function (alumniId) {
   const btn = document.getElementById("save-enrichment-btn");
   if (btn) {
-    btn.disabled  = true;
+    btn.disabled = true;
     btn.innerHTML = `<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
@@ -334,25 +343,25 @@ window.saveEnrichment = async function (alumniId) {
   }
 
   const enrichmentData = {
-    linkedin:            document.getElementById("enr-linkedin")?.value.trim() || "",
-    instagram:           document.getElementById("enr-instagram")?.value.trim() || "",
-    facebook:            document.getElementById("enr-facebook")?.value.trim() || "",
-    tiktok:              document.getElementById("enr-tiktok")?.value.trim() || "",
-    email:               document.getElementById("enr-email")?.value.trim() || "",
-    noHp:                document.getElementById("enr-nohp")?.value.trim() || "",
-    tempatKerja:         document.getElementById("enr-tempat-kerja")?.value.trim() || "",
-    posisi:              document.getElementById("enr-posisi")?.value.trim() || "",
-    alamatKerja:         document.getElementById("enr-alamat-kerja")?.value.trim() || "",
-    statusKerja:         document.getElementById("enr-status-kerja")?.value || "",
-    linkedinPerusahaan:  document.getElementById("enr-linkedin-company")?.value.trim() || "",
+    linkedin: document.getElementById("enr-linkedin")?.value.trim() || "",
+    instagram: document.getElementById("enr-instagram")?.value.trim() || "",
+    facebook: document.getElementById("enr-facebook")?.value.trim() || "",
+    tiktok: document.getElementById("enr-tiktok")?.value.trim() || "",
+    email: document.getElementById("enr-email")?.value.trim() || "",
+    noHp: document.getElementById("enr-nohp")?.value.trim() || "",
+    tempatKerja: document.getElementById("enr-tempat-kerja")?.value.trim() || "",
+    posisi: document.getElementById("enr-posisi")?.value.trim() || "",
+    alamatKerja: document.getElementById("enr-alamat-kerja")?.value.trim() || "",
+    statusKerja: document.getElementById("enr-status-kerja")?.value || "",
+    linkedinPerusahaan: document.getElementById("enr-linkedin-company")?.value.trim() || "",
     instagramPerusahaan: document.getElementById("enr-instagram-company")?.value.trim() || "",
-    facebookPerusahaan:  document.getElementById("enr-facebook-company")?.value.trim() || "",
-    websitePerusahaan:   document.getElementById("enr-website-company")?.value.trim() || "",
+    facebookPerusahaan: document.getElementById("enr-facebook-company")?.value.trim() || "",
+    websitePerusahaan: document.getElementById("enr-website-company")?.value.trim() || "",
   };
 
   try {
     const result = await saveEnrichmentToFirestore(alumniId, enrichmentData);
-    const idx    = currentAlumniData.findIndex(a => a.id === alumniId);
+    const idx = currentAlumniData.findIndex(a => a.id === alumniId);
     if (idx !== -1) {
       currentAlumniData[idx].enrichment = enrichmentData;
       currentAlumniData[idx].status = result.status;
@@ -368,7 +377,7 @@ window.saveEnrichment = async function (alumniId) {
   } catch (err) {
     console.error("saveEnrichment error:", err);
     if (btn) {
-      btn.disabled  = false;
+      btn.disabled = false;
       btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Data`;
       if (window.lucide) lucide.createIcons();
     }
