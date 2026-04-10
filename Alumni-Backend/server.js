@@ -4,11 +4,11 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../Alumni-Frontend'))); // Pastikan path ini benar sesuai struktur foldermu
 
 // Jeda aman (Polite Crawling)
 const jedaAman = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -22,8 +22,13 @@ app.get('/api/pddikti/:nim', async (req, res) => {
     try {
         // 1. BUKA BROWSER SECARA SEMBUNYI-SEMBUNYI LAGI (KARENA TIDAK ADA CAPTCHA)
         browser = await puppeteer.launch({
-            headless: true, // KITA KEMBALIKAN KE TRUE! Robot bekerja di balik layar.
-            args: ['--no-sandbox']
+            headless: true, // Wajib TRUE di server cloud
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage', // Mencegah RAM penuh tiba-tiba
+                '--single-process'
+            ]
         });
         const page = await browser.newPage();
 
