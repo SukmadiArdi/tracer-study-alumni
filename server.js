@@ -131,6 +131,6 @@ app.get('/api/pddikti/:nim', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server Backend menyala di http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server Backend menyala di port ${PORT}`);
 });
