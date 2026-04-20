@@ -1,0 +1,8 @@
+providers = ["node"]
+
+[phases.setup]
+nixPkgs = ["...", "chromium", "nss", "freetype"]
+
+[variables]
+# Tambahkan environment variables untuk keamanan Puppeteer jika diperlukan
+# PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
