@@ -1,8 +1,8 @@
 // File: auth.js
-import { auth } from "./firebase.js";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { supabase } from "./supabase.js";
 
-onAuthStateChanged(auth, (user) => {
+supabase.auth.onAuthStateChange((event, session) => {
+    const user = session?.user;
     if (user) {
         document.getElementById("login-page").classList.add("hidden");
         document.getElementById("main-app").classList.remove("hidden");
@@ -25,9 +25,13 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
     const errEl = document.getElementById("login-error");
     
     errEl.classList.add("hidden");
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch {
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+    });
+
+    if (error) {
         errEl.textContent = "Email atau password salah. Silakan coba lagi.";
         errEl.classList.remove("hidden");
     }
@@ -35,5 +39,5 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
 
 // Jadikan global agar bisa dipanggil dari tombol HTML onclick="handleLogout()"
 window.handleLogout = async function () {
-    await signOut(auth);
+    await supabase.auth.signOut();
 };

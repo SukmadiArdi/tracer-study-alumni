@@ -1,44 +1,118 @@
-import { getAlumni, createAlumni, deleteAlumni, updateStatus, saveEnrichmentToFirestore, getAlumniById } from "./alumni.js";
+import { getAlumni, getAlumniStats, getUniqueYears, getUniquePrograms, createAlumni, deleteAlumni, updateStatus, saveEnrichmentToDatabase, getAlumniById } from "./alumni.js";
 import { runTracking, jalankanSinkronisasiPDDiktiMassal, verifikasiSatuPDDikti } from "./tracking.js";
 import { updateDashboard, addActivity } from "./dashboard.js";
-import { generateSearchLinks, generateCompanySearchLinks, inferStatusKerja, renderEnrichmentModal } from "./enrichment.js";
+import { generateSearchLinks, generateCompanySearchLinks, inferStatusKerja, renderEnrichmentModal, autoEnrichAlumni, fallbackEnrichAlumni } from "./enrichment.js";
+import { supabase } from "./supabase.js";
 import "./import-excel.js";
 
-let currentAlumniData = [];
+// ===== STATE GLOBAL =====
+const PAGE_SIZE = 50;
+let currentPage = 1;
+let totalCount = 0;
+let currentAlumniData = []; // Data halaman saat ini (bukan semua data)
+let isLoading = false;
+
+// State filter
+let filterProgram = "All";
+let filterYear = "All";
+let filterStatus = "All";
+let searchQuery = "";
 
 // ===== 1. INISIALISASI & LOAD DATA =====
-async function loadData() {
-  currentAlumniData = await getAlumni();
-  window.currentAlumniData = currentAlumniData;
-  document.dispatchEvent(new CustomEvent("alumni-loaded", { detail: currentAlumniData }));
-  updateFilterYearsOptions();
-  renderAlumniTable();
-  renderVerification();
-  updateDashboard(currentAlumniData);
-  if (window.lucide) lucide.createIcons();
+async function loadPage(page = 1) {
+  if (isLoading) return;
+  isLoading = true;
+  currentPage = page;
+
+  const tbody = document.getElementById("alumni-table-body");
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr><td colspan="7" class="text-center py-12 text-gray-400">
+        <svg class="animate-spin w-8 h-8 mx-auto mb-3 text-red-400" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <p class="text-sm">Memuat data...</p>
+      </td></tr>`;
+  }
+
+  try {
+    const { data, totalCount: tc } = await getAlumni({
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+      search: searchQuery,
+      program: filterProgram,
+      year: filterYear,
+      status: filterStatus,
+    });
+
+    currentAlumniData = data;
+    totalCount = tc;
+    window.currentAlumniData = currentAlumniData;
+
+    renderAlumniTable();
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    console.error("loadPage error:", err);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Gagal memuat data. Silakan refresh.</td></tr>`;
+  } finally {
+    isLoading = false;
+  }
 }
 
-// ===== 2. FILTER DINAMIS & SEARCH =====
-function updateFilterYearsOptions() {
-  const filterYear = document.getElementById("filter-year");
-  if (!filterYear) return;
-  const uniqueYears = [...new Set(currentAlumniData.map(a => a.year))].filter(y => y).sort((a, b) => b - a);
-  const currentVal = filterYear.value;
-  filterYear.innerHTML =
-    '<option value="All">Semua Tahun</option>' +
-    uniqueYears.map(y => `<option value="${y}">${y}</option>`).join("");
-  filterYear.value = uniqueYears.includes(parseInt(currentVal)) ? currentVal : "All";
+async function loadDashboard() {
+  try {
+    const stats = await getAlumniStats();
+    updateDashboard(stats);
+  } catch (err) {
+    console.error("loadDashboard error:", err);
+  }
 }
 
-document.getElementById("filter-program")?.addEventListener("change", () => { alumniCurrentPage = 1; renderAlumniTable(); });
-document.getElementById("filter-year")?.addEventListener("change", () => { alumniCurrentPage = 1; renderAlumniTable(); });
-document.getElementById("filter-status")?.addEventListener("change", () => { alumniCurrentPage = 1; renderAlumniTable(); });
-document.getElementById("search-alumni")?.addEventListener("input", () => { alumniCurrentPage = 1; renderAlumniTable(); });
-document.getElementById("search-verification")?.addEventListener("input", () => { verifCurrentPage = 1; renderVerification(); });
+async function loadFilterOptions() {
+  try {
+    const [years, programs] = await Promise.all([getUniqueYears(), getUniquePrograms()]);
 
-// ===== PAGINATION STATE ALUMNI =====
-const ALUMNI_PAGE_SIZE = 20;
-let alumniCurrentPage = 1;
+    const filterYear = document.getElementById("filter-year");
+    if (filterYear) {
+      filterYear.innerHTML =
+        '<option value="All">Semua Tahun</option>' +
+        years.map(y => `<option value="${y}">${y}</option>`).join("");
+    }
+
+    const filterProg = document.getElementById("filter-program");
+    if (filterProg) {
+      filterProg.innerHTML =
+        '<option value="All">Semua Program</option>' +
+        programs.map(p => `<option value="${p}">${p}</option>`).join("");
+    }
+  } catch (err) {
+    console.error("loadFilterOptions error:", err);
+  }
+}
+
+// ===== 2. EVENT LISTENER FILTER & SEARCH =====
+let searchDebounce;
+document.getElementById("search-alumni")?.addEventListener("input", (e) => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    loadPage(1);
+  }, 400);
+});
+
+document.getElementById("filter-program")?.addEventListener("change", (e) => {
+  filterProgram = e.target.value;
+  loadPage(1);
+});
+document.getElementById("filter-year")?.addEventListener("change", (e) => {
+  filterYear = e.target.value;
+  loadPage(1);
+});
+document.getElementById("filter-status")?.addEventListener("change", (e) => {
+  filterStatus = e.target.value;
+  loadPage(1);
+});
 
 // ===== 3. RENDER TABEL ALUMNI =====
 function renderAlumniTable() {
@@ -51,44 +125,14 @@ function renderAlumniTable() {
   const pageNumEl = document.getElementById("alumni-page-numbers");
   if (!tbody) return;
 
-  const fProg = document.getElementById("filter-program")?.value || "All";
-  const fYear = document.getElementById("filter-year")?.value || "All";
-  const fStat = document.getElementById("filter-status")?.value || "All";
-  const searchVal = (document.getElementById("search-alumni")?.value || "").toLowerCase().trim();
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const startItem = (currentPage - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(currentPage * PAGE_SIZE, totalCount);
 
-  const filteredData = currentAlumniData.filter(a => {
-    if (fProg !== "All" && a.program !== fProg) return false;
-    if (fYear !== "All" && a.year.toString() !== fYear) return false;
-    if (fStat !== "All") {
-      if (fStat === "Enriched") {
-        const enr = a.enrichment;
-        if (!enr?.tempatKerja && !enr?.linkedin && !enr?.email) return false;
-      } else {
-        if (a.status !== fStat) return false;
-      }
-    }
-    if (searchVal) {
-      const matchName = a.name?.toLowerCase().trim().includes(searchVal);
-      const matchNim = a.nim?.toString().toLowerCase().trim().includes(searchVal);
-      if (!matchName && !matchNim) return false;
-    }
-    return true;
-  });
+  if (countText) countText.textContent = `Menampilkan ${totalCount > 0 ? startItem : 0}–${endItem} dari ${totalCount.toLocaleString()} alumni`;
+  if (pageInfo) pageInfo.textContent = totalCount > 0 ? `Halaman ${currentPage} / ${totalPages}` : "";
 
-  // Hitung pagination
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / ALUMNI_PAGE_SIZE));
-  if (alumniCurrentPage > totalPages) alumniCurrentPage = totalPages;
-
-  const start = (alumniCurrentPage - 1) * ALUMNI_PAGE_SIZE;
-  const end = start + ALUMNI_PAGE_SIZE;
-  const visible = filteredData.slice(start, end);
-
-  // Update count & page info
-  if (countText) countText.textContent = `Menampilkan ${filteredData.length} dari ${currentAlumniData.length} alumni`;
-  if (pageInfo) pageInfo.textContent = filteredData.length > 0 ? `Halaman ${alumniCurrentPage} / ${totalPages}` : "";
-
-  // Render kosong
-  if (filteredData.length === 0) {
+  if (currentAlumniData.length === 0) {
     tbody.innerHTML = `
       <tr><td colspan="7" class="text-center py-12 text-gray-400">
         <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
@@ -99,14 +143,13 @@ function renderAlumniTable() {
     return;
   }
 
-  // Render baris tabel
   const statusColor = {
     "Identified": "bg-emerald-100 text-emerald-700",
     "Pending": "bg-amber-100 text-amber-700",
     "Not Found": "bg-red-100 text-red-700"
   };
 
-  tbody.innerHTML = visible.map(a => {
+  tbody.innerHTML = currentAlumniData.map(a => {
     const enr = a.enrichment || {};
     const hasEnrichment = enr.tempatKerja || enr.linkedin || enr.email;
     const enrichBadge = hasEnrichment
@@ -133,7 +176,7 @@ function renderAlumniTable() {
         </td>
         <td class="px-4 py-3">
           <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${colorClass}">
-            ${a.status}
+            ${{"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan", "Enriched": "Terlacak (Valid)"}[a.status] || a.status}
           </span>
           <div class="text-xs text-blue-600 mt-1 font-medium">PDDikti: ${a.confidence || 0}%</div>
           ${hasEnrichment ? `<div class="text-xs text-purple-600 mt-0.5">Profil: ${a.enrichmentScore || 0}% terisi</div>` : ''}
@@ -148,7 +191,7 @@ function renderAlumniTable() {
               class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm">
               <i data-lucide="radar" class="w-3 h-3"></i> Track
             </button>
-            <button onclick="handleDeleteAlumni('${a.id}', '${a.name.replace(/'/g, '')}')"
+            <button onclick="handleDeleteAlumni('${a.id}', '${a.name.replace(/'/g, "")}')"
               class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
               <i data-lucide="trash-2" class="w-3 h-3"></i>
             </button>
@@ -159,48 +202,72 @@ function renderAlumniTable() {
 
   // Render pagination
   if (paginEl) paginEl.classList.remove("hidden");
-  if (prevBtn) prevBtn.disabled = alumniCurrentPage === 1;
-  if (nextBtn) nextBtn.disabled = alumniCurrentPage === totalPages;
+  if (prevBtn) prevBtn.disabled = currentPage === 1;
+  if (nextBtn) nextBtn.disabled = currentPage === totalPages;
 
   if (pageNumEl) {
-    pageNumEl.innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1)
-      .filter(p => p === 1 || p === totalPages || Math.abs(p - alumniCurrentPage) <= 1)
-      .reduce((acc, p, idx, arr) => {
-        if (idx > 0 && p - arr[idx - 1] > 1) {
-          acc += `<span class="px-2 py-1.5 text-xs text-gray-400">...</span>`;
-        }
-        acc += `
-          <button onclick="goToAlumniPage(${p})"
-            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
-            ${p === alumniCurrentPage
-            ? 'bg-red-700 text-white'
-            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
-            ${p}
-          </button>`;
-        return acc;
-      }, "");
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1);
+
+    pageNumEl.innerHTML = pages.reduce((acc, p, idx, arr) => {
+      if (idx > 0 && p - arr[idx - 1] > 1) {
+        acc += `<span class="px-2 py-1.5 text-xs text-gray-400">...</span>`;
+      }
+      acc += `
+        <button onclick="goToAlumniPage(${p})"
+          class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
+          ${p === currentPage ? 'bg-red-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
+          ${p}
+        </button>`;
+      return acc;
+    }, "");
   }
 
   if (window.lucide) lucide.createIcons();
 }
 
-// ===== Navigasi Pagination Alumni =====
-window.changeAlumniPage = function (dir) {
-  const totalPages = Math.ceil(
-    currentAlumniData.filter(() => true).length / ALUMNI_PAGE_SIZE
-  );
-  alumniCurrentPage = Math.min(Math.max(1, alumniCurrentPage + dir), totalPages);
-  renderAlumniTable();
-};
-
+// ===== Navigasi Pagination =====
 window.goToAlumniPage = function (page) {
-  alumniCurrentPage = page;
-  renderAlumniTable();
+  loadPage(page);
+};
+window.changeAlumniPage = function (dir) {
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const next = Math.min(Math.max(1, currentPage + dir), totalPages);
+  loadPage(next);
 };
 
-// ===== 4. RENDER VERIFIKASI MANUAL =====
-const VERIF_PAGE_SIZE = 20;
+// ===== 4. RENDER VERIFIKASI MANUAL (Server-Side) =====
+const VERIF_PAGE_SIZE = 50;
 let verifCurrentPage = 1;
+let verifTotalCount = 0;
+let verifData = [];
+let verifSearchQuery = "";
+
+async function loadVerificationPage(page = 1) {
+  verifCurrentPage = page;
+  try {
+    const { data, totalCount: tc } = await getAlumni({
+      page,
+      pageSize: VERIF_PAGE_SIZE,
+      search: verifSearchQuery,
+      status: "Pending",
+    });
+    verifData = data;
+    verifTotalCount = tc;
+    renderVerification();
+  } catch (err) {
+    console.error("loadVerificationPage error:", err);
+  }
+}
+
+let verifSearchDebounce;
+document.getElementById("search-verification")?.addEventListener("input", (e) => {
+  clearTimeout(verifSearchDebounce);
+  verifSearchDebounce = setTimeout(() => {
+    verifSearchQuery = e.target.value.toLowerCase().trim();
+    loadVerificationPage(1);
+  }, 400);
+});
 
 function renderVerification() {
   const container = document.getElementById("verification-list");
@@ -211,42 +278,23 @@ function renderVerification() {
   const nextBtn = document.getElementById("verif-next");
   if (!container) return;
 
-  const searchVal = (document.getElementById("search-verification")?.value || "").toLowerCase().trim();
+  const totalPages = Math.max(1, Math.ceil(verifTotalCount / VERIF_PAGE_SIZE));
+  const startItem = (verifCurrentPage - 1) * VERIF_PAGE_SIZE + 1;
+  const endItem = Math.min(verifCurrentPage * VERIF_PAGE_SIZE, verifTotalCount);
 
-  const pendingList = currentAlumniData.filter(a => {
-    if (a.status !== "Pending") return false;
-    if (searchVal) {
-      const matchName = a.name?.toLowerCase().includes(searchVal);
-      const matchNim = a.nim?.toLowerCase().includes(searchVal);
-      if (!matchName && !matchNim) return false;
-    }
-    return true;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(pendingList.length / VERIF_PAGE_SIZE));
-
-  // Pastikan halaman tidak melebihi total
-  if (verifCurrentPage > totalPages) verifCurrentPage = totalPages;
-
-  const start = (verifCurrentPage - 1) * VERIF_PAGE_SIZE;
-  const end = start + VERIF_PAGE_SIZE;
-  const visible = pendingList.slice(start, end);
-
-  // Count text
   if (countEl) {
-    countEl.textContent = `Menampilkan ${start + 1}–${Math.min(end, pendingList.length)} dari ${pendingList.length} alumni pending`;
+    countEl.textContent = verifTotalCount > 0
+      ? `Menampilkan ${startItem}–${endItem} dari ${verifTotalCount.toLocaleString()} alumni pending`
+      : "Tidak ada alumni yang perlu diverifikasi";
   }
 
-  // Render list
-  if (pendingList.length === 0) {
-    container.innerHTML = `<p class="text-sm text-gray-400 text-center py-6">
-      ${searchVal ? "Tidak ada hasil pencarian." : "Tidak ada alumni yang perlu diverifikasi"}
-    </p>`;
+  if (verifData.length === 0) {
+    container.innerHTML = `<p class="text-sm text-gray-400 text-center py-6">Tidak ada alumni yang perlu diverifikasi</p>`;
     if (paginEl) paginEl.classList.add("hidden");
     return;
   }
 
-  container.innerHTML = visible.map(a => `
+  container.innerHTML = verifData.map(a => `
     <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
       <div>
         <p class="text-sm font-medium text-gray-900">${a.name}</p>
@@ -255,101 +303,70 @@ function renderVerification() {
       <div class="flex gap-2">
         <button onclick="confirmVerify('${a.id}', 'approve')"
           class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors">
-          Identified
+          Teridentifikasi
         </button>
         <button onclick="confirmVerify('${a.id}', 'reject')"
           class="px-3 py-1.5 text-xs font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
-          Not Found
+          Antrean data belum ditemukan
         </button>
       </div>
     </div>
   `).join("");
 
-  // Render pagination
   if (paginEl) paginEl.classList.remove("hidden");
-
-  // Prev / Next button state
   if (prevBtn) prevBtn.disabled = verifCurrentPage === 1;
   if (nextBtn) nextBtn.disabled = verifCurrentPage === totalPages;
 
-  // Page number buttons
   if (pageNumEl) {
-    pageNumEl.innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1)
-      .filter(p => {
-        // Tampilkan halaman di sekitar halaman aktif saja (max 5 tombol)
-        return p === 1 || p === totalPages ||
-          Math.abs(p - verifCurrentPage) <= 1;
-      })
-      .reduce((acc, p, idx, arr) => {
-        // Tambah "..." jika ada gap
-        if (idx > 0 && p - arr[idx - 1] > 1) {
-          acc += `<span class="px-2 py-1.5 text-xs text-gray-400">...</span>`;
-        }
-        acc += `
-          <button onclick="goToVerifPage(${p})"
-            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
-            ${p === verifCurrentPage
-            ? 'bg-red-700 text-white'
-            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
-            ${p}
-          </button>`;
-        return acc;
-      }, "");
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter(p => p === 1 || p === totalPages || Math.abs(p - verifCurrentPage) <= 1);
+    pageNumEl.innerHTML = pages.reduce((acc, p, idx, arr) => {
+      if (idx > 0 && p - arr[idx - 1] > 1) acc += `<span class="px-2 py-1.5 text-xs text-gray-400">...</span>`;
+      acc += `
+        <button onclick="goToVerifPage(${p})"
+          class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
+          ${p === verifCurrentPage ? 'bg-red-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">
+          ${p}
+        </button>`;
+      return acc;
+    }, "");
   }
 }
 
-// ===== Navigasi Pagination =====
 window.changeVerifPage = function (dir) {
-  const searchVal = (document.getElementById("search-verification")?.value || "").toLowerCase().trim();
-  const totalItems = currentAlumniData.filter(a => {
-    if (a.status !== "Pending") return false;
-    if (searchVal) {
-      return a.name?.toLowerCase().includes(searchVal) || a.nim?.toLowerCase().includes(searchVal);
-    }
-    return true;
-  }).length;
-  const totalPages = Math.ceil(totalItems / VERIF_PAGE_SIZE);
-  verifCurrentPage = Math.min(Math.max(1, verifCurrentPage + dir), totalPages);
-  renderVerification();
+  const totalPages = Math.max(1, Math.ceil(verifTotalCount / VERIF_PAGE_SIZE));
+  const next = Math.min(Math.max(1, verifCurrentPage + dir), totalPages);
+  loadVerificationPage(next);
 };
-
 window.goToVerifPage = function (page) {
-  verifCurrentPage = page;
-  renderVerification();
+  loadVerificationPage(page);
 };
 
-// ===== 5. TRACKING ALUMNI (DIUPDATE KE PDDIKTI) =====
+// ===== 5. TRACKING ALUMNI =====
 async function handleTrackAlumni(id) {
   const alumni = currentAlumniData.find(a => a.id === id);
   if (!alumni) return;
 
-  // 1. Munculkan toast loading agar user tahu sistem sedang bekerja
   showToast(`🔍 Sedang mencari data ${alumni.name} di PDDikti...`, "info");
 
   try {
-    // 2. Panggil API PDDikti
     const result = await verifikasiSatuPDDikti(alumni);
-    
-    // 3. Simpan dan tangkap status akhirnya (yang sudah mempertimbangkan profil)
     const finalStatus = await updateStatus(id, result.status, result.confidence);
-    
-    // 4. Update data di memori aplikasi
+
+    // Update data lokal pada halaman saat ini
     const idx = currentAlumniData.findIndex(a => a.id === id);
     if (idx !== -1) {
-      currentAlumniData[idx].status = finalStatus; // Gunakan finalStatus
+      currentAlumniData[idx].status = finalStatus;
       currentAlumniData[idx].confidence = result.confidence;
     }
-    window.currentAlumniData = currentAlumniData;
 
-    // 5. Render ulang UI agar tabel dan dashboard langsung berubah
     renderAlumniTable();
-    renderVerification();
-    updateDashboard(currentAlumniData);
+    // Refresh dashboard stats dari DB
+    await loadDashboard();
 
-    // 6. Catat aktivitas dan tampilkan sukses
-    addActivity(`Pencarian PDDikti ${alumni.name}: ${finalStatus} (${result.confidence}%)`, "radar", "text-blue-600", "bg-blue-50");
-    showToast(`✅ Selesai! ${alumni.name} berstatus: ${finalStatus}`, finalStatus === "Identified" ? "success" : "info");
-
+    const labelStatus = {"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan", "Enriched": "Terlacak (Valid)"}[finalStatus] || finalStatus;
+    addActivity(`Pencarian PDDikti ${alumni.name}: ${labelStatus} (${result.confidence}%)`, "radar", "text-blue-600", "bg-blue-50");
+    showToast(`✅ Selesai! ${alumni.name} berstatus: ${labelStatus}`, finalStatus === "Identified" ? "success" : "info");
   } catch (e) {
     console.error(e);
     showToast(`❌ Gagal menghubungi server PDDikti untuk ${alumni.name}`, "error");
@@ -362,18 +379,26 @@ async function confirmVerify(id, action) {
   const confidence = action === "approve" ? 90 : 0;
   try {
     await updateStatus(id, status, confidence);
+
+    // Hapus dari daftar verifikasi lokal
+    verifData = verifData.filter(a => a.id !== id);
+    verifTotalCount = Math.max(0, verifTotalCount - 1);
+
+    // Update tabel alumni jika item ada di halaman saat ini
     const idx = currentAlumniData.findIndex(a => a.id === id);
     if (idx !== -1) {
       currentAlumniData[idx].status = status;
       currentAlumniData[idx].confidence = confidence;
+      renderAlumniTable();
     }
-    window.currentAlumniData = currentAlumniData;
-    renderAlumniTable();
+
     renderVerification();
-    updateDashboard(currentAlumniData);
-    const name = currentAlumniData.find(a => a.id === id)?.name || "Alumni";
-    addActivity(`${name} diverifikasi sebagai ${status}`, "check", "text-emerald-600", "bg-emerald-50");
-    showToast(`Status diperbarui: ${status}`, "success");
+    await loadDashboard();
+
+    const labelStatus = {"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan", "Enriched": "Terlacak (Valid)"}[status] || status;
+    const name = verifData.find(a => a.id === id)?.name || currentAlumniData.find(a => a.id === id)?.name || "Alumni";
+    addActivity(`${name} diverifikasi sebagai ${labelStatus}`, "check", "text-emerald-600", "bg-emerald-50");
+    showToast(`Status diperbarui: ${labelStatus}`, "success");
   } catch (e) {
     console.error(e);
     showToast("Gagal memperbarui status", "error");
@@ -385,10 +410,9 @@ async function handleDeleteAlumni(id, name) {
   if (!confirm(`Hapus alumni "${name}"? Tindakan ini tidak dapat dibatalkan.`)) return;
   try {
     await deleteAlumni(id);
-    currentAlumniData = currentAlumniData.filter(a => a.id !== id);
-    window.currentAlumniData = currentAlumniData;
-    renderAlumniTable();
-    updateDashboard(currentAlumniData);
+    // Reload halaman saat ini
+    await loadPage(currentPage);
+    await loadDashboard();
     addActivity(`Alumni ${name} dihapus`, "trash-2", "text-red-600", "bg-red-50");
     showToast(`Alumni ${name} berhasil dihapus`, "info");
   } catch (e) {
@@ -411,18 +435,11 @@ document.getElementById("add-alumni-form")?.addEventListener("submit", async (e)
     return;
   }
   try {
-    const newId = await createAlumni(data);
-    currentAlumniData.push({
-      id: newId, ...data,
-      year: parseInt(data.year),
-      status: "Pending", confidence: 0, enrichment: {}
-    });
-    window.currentAlumniData = currentAlumniData;
-    updateFilterYearsOptions();
-    renderAlumniTable();
-    updateDashboard(currentAlumniData);
+    await createAlumni(data);
     document.getElementById("add-alumni-form").reset();
     document.getElementById("add-alumni-modal")?.classList.add("hidden");
+    // Refresh data & filter options
+    await Promise.all([loadPage(1), loadDashboard(), loadFilterOptions()]);
     addActivity(`Alumni baru ditambahkan: ${data.name}`, "user-plus", "text-blue-600", "bg-blue-50");
     showToast(`${data.name} berhasil ditambahkan`, "success");
   } catch (err) {
@@ -471,17 +488,9 @@ window.openEnrichmentModal = async function (alumniId) {
   window.bukaGoogleMaps = function () {
     const tempat = document.getElementById("enr-tempat-kerja")?.value?.trim() || "";
     const alamat = document.getElementById("enr-alamat-kerja")?.value?.trim() || "";
-
-    // Gabungkan tempat + alamat, buang spasi ekstra
     const query = [tempat, alamat].filter(v => v !== "").join(", ");
-
-    if (!query) {
-      showToast("Isi dulu Tempat Bekerja atau Alamat!", "error");
-      return;
-    }
-
-    const q = encodeURIComponent(query);
-    window.open(`https://www.google.com/maps/search/${q}`, "_blank");
+    if (!query) { showToast("Isi dulu Tempat Bekerja atau Alamat!", "error"); return; }
+    window.open(`https://www.google.com/maps/search/${encodeURIComponent(query)}`, "_blank");
   };
 
   if (existingEnrichment.tempatKerja) {
@@ -496,6 +505,133 @@ window.closeEnrichmentModal = function () {
     modal.style.transition = "opacity 0.2s ease";
     setTimeout(() => modal.remove(), 220);
   }
+};
+
+// ===== TRIGGER AUTO ENRICHMENT (dari tombol di modal) =====
+// Helper: cek apakah hasil enrichment meaningful (ada data asli dari internet)
+function _isEnrichmentEmpty(data) {
+  if (!data) return true;
+  return !data.linkedin && !data.instagram && !data.facebook &&
+         !data.email && !data.noHp && !data.tempatKerja;
+}
+
+window.triggerAutoEnrich = async function (alumniId, nim, btn) {
+  const alumni = currentAlumniData.find(a => a.id === alumniId);
+  if (!alumni) return;
+
+  const statusEl = document.getElementById('auto-enrich-status');
+  const msgEl    = document.getElementById('auto-enrich-msg');
+
+  // UI: loading state
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+  </svg> Mencari...`;
+  if (statusEl) {
+    statusEl.classList.remove('hidden');
+    msgEl.textContent = '🔗 [1/4] Mencari LinkedIn via Google Dorking...';
+  }
+
+  let enrichData = null;
+  let usedFallback = false;
+  let clearIntervalFn = null;
+
+  try {
+    // Update progress setiap 15 detik agar user tidak bingung
+    const steps = [
+      '🔗 [1/4] Mencari LinkedIn...',
+      '📸 [2/4] Mencari Instagram...',
+      '📧 [3/4] Mencari Email...',
+      '💼 [4/4] Mencari Info Kerja...',
+    ];
+    let stepIdx = 0;
+    const interval = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+      if (msgEl) msgEl.textContent = steps[stepIdx];
+    }, 16000);
+    clearIntervalFn = () => clearInterval(interval);
+
+    try {
+      enrichData = await autoEnrichAlumni(alumni);
+    } catch (serverErr) {
+      // Server error (timeout, 500, dll) → langsung fallback
+      console.warn('Auto enrichment server error, beralih ke fallback heuristik:', serverErr.message);
+      enrichData = null;
+    }
+
+    clearInterval(interval);
+
+    // Cek apakah data dari internet kosong → gunakan fallback
+    if (_isEnrichmentEmpty(enrichData)) {
+      console.info('Data Google Dorking kosong. Menggunakan fallback heuristik (usePencarianController logic)...');
+      enrichData   = fallbackEnrichAlumni(alumni);
+      usedFallback = true;
+
+      if (statusEl && msgEl) {
+        statusEl.className = 'mt-3 text-xs text-amber-800 bg-amber-100 rounded-lg px-3 py-2 flex items-center gap-2';
+        msgEl.textContent  = '⚠️ Data tidak ditemukan di internet. Mengisi dengan prediksi heuristik — harap verifikasi sebelum menyimpan.';
+      }
+    }
+
+  } catch (outerErr) {
+    // Fallback jika ada error tak terduga di luar
+    console.error('Unexpected error di triggerAutoEnrich:', outerErr);
+    if (clearIntervalFn) clearIntervalFn();
+    enrichData   = fallbackEnrichAlumni(alumni);
+    usedFallback = true;
+
+    if (statusEl && msgEl) {
+      statusEl.className = 'mt-3 text-xs text-amber-800 bg-amber-100 rounded-lg px-3 py-2 flex items-center gap-2';
+      msgEl.textContent  = '⚠️ Terjadi kesalahan. Mengisi dengan prediksi heuristik — harap verifikasi sebelum menyimpan.';
+    }
+  }
+
+  // ===== ISI FORM DARI DATA (ASLI ATAU FALLBACK) =====
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  setVal('enr-linkedin',       enrichData.linkedin);
+  setVal('enr-instagram',      enrichData.instagram);
+  setVal('enr-facebook',       enrichData.facebook);
+  setVal('enr-tiktok',         enrichData.tiktok);
+  setVal('enr-email',          enrichData.email);
+  setVal('enr-nohp',           enrichData.noHp);
+  setVal('enr-tempat-kerja',   enrichData.tempatKerja);
+  setVal('enr-posisi',         enrichData.posisi);
+  setVal('enr-alamat-kerja',   enrichData.alamatKerja);
+
+  // Status kerja via select
+  if (enrichData.statusKerja) {
+    const sel = document.getElementById('enr-status-kerja');
+    if (sel) sel.value = enrichData.statusKerja;
+  }
+
+  // Trigger handleTempatKerjaInput jika ada tempat kerja
+  if (enrichData.tempatKerja && window.handleTempatKerjaInput) {
+    window.handleTempatKerjaInput(enrichData.tempatKerja);
+  }
+
+  // ===== UPDATE UI HASIL =====
+  if (!usedFallback) {
+    // Hasil nyata dari Google Dorking
+    const found = enrichData.sumber?.length || 0;
+    if (statusEl) {
+      statusEl.className = 'mt-3 text-xs text-emerald-700 bg-emerald-100 rounded-lg px-3 py-2 flex items-center gap-2';
+      msgEl.textContent  = `✅ Selesai! ${found} sumber ditemukan: ${enrichData.sumber?.join(', ') || '-'}. Periksa dan simpan data di bawah.`;
+    }
+    btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Selesai`;
+    btn.className = btn.className.replace('bg-indigo-600 hover:bg-indigo-700', 'bg-emerald-600');
+  } else {
+    // Hasil heuristik fallback
+    if (statusEl && !statusEl.textContent.includes('heuristik')) {
+      statusEl.className = 'mt-3 text-xs text-amber-800 bg-amber-100 rounded-lg px-3 py-2 flex items-center gap-2';
+      msgEl.textContent  = '⚠️ Data prediksi heuristik (usePencarianController) telah diisi. Harap verifikasi sebelum menyimpan.';
+    }
+    btn.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4"></i> Data Fallback`;
+    btn.className = btn.className.replace('bg-indigo-600 hover:bg-indigo-700', 'bg-amber-500 hover:bg-amber-600');
+    btn.disabled = false; // Izinkan user klik lagi jika mau mencoba ulang
+  }
+
+  if (window.lucide) lucide.createIcons();
 };
 
 window.saveEnrichment = async function (alumniId) {
@@ -526,27 +662,23 @@ window.saveEnrichment = async function (alumniId) {
   };
 
   try {
-    const result = await saveEnrichmentToFirestore(alumniId, enrichmentData);
+    const result = await saveEnrichmentToDatabase(alumniId, enrichmentData);
+
+    // Update row di halaman saat ini
     const idx = currentAlumniData.findIndex(a => a.id === alumniId);
-    
     if (idx !== -1) {
       currentAlumniData[idx].enrichment = enrichmentData;
-      // Gunakan nilai enrichmentScore yang baru
-      currentAlumniData[idx].enrichmentScore = result.enrichmentScore; 
-      // Update status agar bisa berubah jadi 'Identified' jika profil cukup lengkap
-      currentAlumniData[idx].status = result.status; 
+      currentAlumniData[idx].enrichmentScore = result.enrichmentScore;
+      currentAlumniData[idx].status = result.status;
     }
-    
-    window.currentAlumniData = currentAlumniData;
+
     closeEnrichmentModal();
     renderAlumniTable();
-    updateDashboard(currentAlumniData);
-    
+    await loadDashboard();
+
     const name = currentAlumniData[idx]?.name || "Alumni";
-    // Toast & Activity log juga diupdate untuk memanggil enrichmentScore
     addActivity(`Enrichment ${name} disimpan (${result.enrichmentScore}% terisi)`, "check", "text-emerald-600", "bg-emerald-50");
     showToast(`✅ Data profil ${name} berhasil disimpan! (${result.enrichmentScore}% terisi)`, "success");
-    
   } catch (err) {
     console.error("saveEnrichment error:", err);
     if (btn) {
@@ -584,7 +716,6 @@ document.getElementById("btn-start-pddikti")?.addEventListener("click", async ()
   const countText = document.getElementById("pddikti-count-text");
   const progressBar = document.getElementById("pddikti-progress-bar");
 
-  // 1. Ubah tampilan tombol menjadi state Loading
   btn.disabled = true;
   btn.innerHTML = `<svg class="animate-spin w-4 h-4 mr-2 inline" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -592,34 +723,26 @@ document.getElementById("btn-start-pddikti")?.addEventListener("click", async ()
     </svg> Sedang Sinkronisasi...`;
   progressArea.classList.remove("hidden");
 
-  // 2. Fungsi Callback untuk memperbarui UI Progress Bar dari tracking.js
   const updateUI = (nama, proses, total, pesan) => {
     statusText.textContent = `Mencari data: ${nama} | ${pesan}`;
     countText.textContent = `${proses} / ${total} Alumni Terproses`;
-    const persentase = total === 0 ? 0 : Math.round((proses / total) * 100);
-    progressBar.style.width = `${persentase}%`;
+    progressBar.style.width = `${total === 0 ? 0 : Math.round((proses / total) * 100)}%`;
   };
 
   try {
-    // 3. Eksekusi fungsi batch crawling (mengambil daftar alumni yang sedang aktif di memori)
+    // Gunakan hanya data halaman saat ini untuk sinkronisasi
     const totalSelesai = await jalankanSinkronisasiPDDiktiMassal(currentAlumniData, updateUI, updateStatus);
-
-    // 4. Beri notifikasi dan catat aktivitas ke dashboard
     showToast(`✅ Sinkronisasi Selesai! ${totalSelesai} data diproses.`, "success");
     addActivity(`Sinkronisasi massal PDDikti selesai: ${totalSelesai} data`, "server", "text-blue-600", "bg-blue-50");
-
-    // 5. Muat ulang data dari Firebase agar tabel & grafik ter-update otomatis
-    await loadData();
-
+    await Promise.all([loadPage(currentPage), loadDashboard()]);
   } catch (error) {
     console.error("Sinkronisasi Error:", error);
     showToast("❌ Terjadi kesalahan saat sinkronisasi PDDikti.", "error");
   } finally {
-    // 6. Kembalikan kondisi UI Modal seperti semula
     btn.disabled = false;
     btn.innerHTML = `Mulai Sinkronisasi`;
     progressArea.classList.add("hidden");
-    document.getElementById('sync-pddikti-modal').classList.add('hidden');
+    document.getElementById('sync-pddikti-modal')?.classList.add('hidden');
     if (window.lucide) lucide.createIcons();
   }
 });
@@ -628,11 +751,157 @@ document.getElementById("btn-start-pddikti")?.addEventListener("click", async ()
 window.handleTrackAlumni = handleTrackAlumni;
 window.handleDeleteAlumni = handleDeleteAlumni;
 window.confirmVerify = confirmVerify;
-window.updateFilterYearsOptions = updateFilterYearsOptions;
+window.updateFilterYearsOptions = () => {}; // Deprecated, handled by loadFilterOptions()
 window.renderAlumniTable = renderAlumniTable;
 window.createAlumni = createAlumni;
 
+// ===== AUTO ENRICHMENT BATCH =====
+window.startBatchEnrich = async function () {
+  const mode = document.querySelector('input[name="batch-enrich-mode"]:checked')?.value || 'page';
+
+  const btnStart   = document.getElementById('btn-start-batch-enrich');
+  const btnClose   = document.getElementById('btn-close-batch-enrich');
+  const progressEl = document.getElementById('batch-enrich-progress-area');
+  const statusEl   = document.getElementById('batch-enrich-status-text');
+  const countEl    = document.getElementById('batch-enrich-count-text');
+  const barEl      = document.getElementById('batch-enrich-progress-bar');
+  const logEl      = document.getElementById('batch-enrich-log');
+
+  // Reset UI
+  progressEl.classList.remove('hidden');
+  logEl.innerHTML = '';
+  barEl.style.width = '0%';
+  btnStart.disabled = true;
+  btnStart.innerHTML = `<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Memproses...`;
+  btnClose.disabled = true;
+
+  const addLog = (msg) => {
+    const line = document.createElement('div');
+    line.textContent = msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  try {
+    // Kumpulkan daftar alumni yang akan diproses
+    let targets = [];
+
+    if (mode === 'page') {
+      targets = [...currentAlumniData];
+      addLog(`Mode: Halaman ini (${targets.length} alumni)`);
+    } else {
+      // Ambil semua yang belum ter-enrich dari DB (berlaku untuk 'all' dan 'all_fast')
+      addLog('Mengambil data dari database...');
+      statusEl.textContent = 'Mengambil data...';
+      let offset = 0;
+      const batchSize = 200;
+      while (true) {
+        const { data, error } = await supabase
+          .from('alumni')
+          .select('id, name, nim, program, year, status, enrichment')
+          .in('status', ['Pending', 'Not Found'])
+          .range(offset, offset + batchSize - 1)
+          .order('id', { ascending: true });
+        if (error || !data || data.length === 0) break;
+        targets.push(...data);
+        if (data.length < batchSize) break;
+        offset += batchSize;
+      }
+      addLog(`Mode: ${mode === 'all_fast' ? 'Prioritas' : 'Internet'} (${targets.length} alumni ditemukan)`);
+    }
+
+    if (targets.length === 0) {
+      addLog('✅ Tidak ada alumni yang perlu diproses.');
+      statusEl.textContent = 'Selesai — tidak ada data.';
+      btnStart.disabled = false;
+      btnStart.innerHTML = `<i data-lucide="zap" class="w-4 h-4"></i> Mulai Enrichment`;
+      btnClose.disabled = false;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    let done = 0, sukses = 0, fallback = 0, gagal = 0;
+    const total = targets.length;
+
+    for (const alumni of targets) {
+      statusEl.textContent = `[${done + 1}/${total}] ${alumni.name || alumni.nama || '-'}`;
+      countEl.textContent  = `${done} / ${total}`;
+      barEl.style.width    = `${Math.round((done / total) * 100)}%`;
+
+      let enrichData = null;
+      let usedFallback = false;
+
+      // Helper cek kosong
+      const isEmpty = (d) => !d || (!d.linkedin && !d.instagram && !d.facebook && !d.email && !d.noHp && !d.tempatKerja);
+
+      if (mode === 'all_fast') {
+        enrichData = fallbackEnrichAlumni(alumni);
+        usedFallback = true;
+      } else {
+        try {
+          enrichData = await autoEnrichAlumni(alumni);
+        } catch (_) {
+          enrichData = null;
+        }
+
+        if (isEmpty(enrichData)) {
+          enrichData   = fallbackEnrichAlumni(alumni);
+          usedFallback = true;
+        }
+      }
+
+      try {
+        await saveEnrichmentToDatabase(alumni.id, enrichData);
+        if (usedFallback) {
+          fallback++;
+          addLog(`⚠️ [${alumni.name || alumni.nama}] — data heuristik`);
+        } else {
+          sukses++;
+          addLog(`✅ [${alumni.name || alumni.nama}] — ${enrichData.sumber?.join(', ') || 'tersimpan'}`);
+        }
+      } catch (saveErr) {
+        gagal++;
+        addLog(`❌ [${alumni.name || alumni.nama}] — gagal simpan`);
+      }
+
+      done++;
+      
+      // Jeda kecil agar tidak membebani server, jika all_fast jauh lebih cepat (tanpa jeda, biar browser napas sedikit dkk tunggu ui rerender)
+      if (mode !== 'all_fast') {
+        await new Promise(r => setTimeout(r, 800));
+      } else if (done % 10 === 0) {
+        // Biar UI progress jalan / tidak freez kalau datanya panjang
+        await new Promise(r => setTimeout(r, 10));
+      }
+    }
+
+    barEl.style.width   = '100%';
+    countEl.textContent = `${done} / ${total}`;
+    statusEl.textContent = `Selesai! ✅ ${sukses} internet · ⚠️ ${fallback} heuristik · ❌ ${gagal} gagal`;
+    addLog(`--- Selesai: ${sukses} berhasil, ${fallback} heuristik, ${gagal} gagal ---`);
+
+    // Refresh tabel & dashboard
+    await Promise.all([loadPage(currentPage), loadDashboard()]);
+
+  } catch (err) {
+    console.error('Batch enrich error:', err);
+    addLog(`❌ Error: ${err.message}`);
+    statusEl.textContent = 'Terjadi kesalahan.';
+  } finally {
+    btnStart.disabled = false;
+    btnStart.innerHTML = `<i data-lucide="zap" class="w-4 h-4"></i> Mulai Lagi`;
+    btnClose.disabled = false;
+    if (window.lucide) lucide.createIcons();
+  }
+};
+
 // ===== INIT (Estafet dari Auth) =====
-window.initializeAppData = function() {
-  loadData();
+window.initializeAppData = async function () {
+  // Jalankan semua inisialisasi secara paralel untuk maksimalkan kecepatan
+  await Promise.all([
+    loadPage(1),
+    loadDashboard(),
+    loadFilterOptions(),
+    loadVerificationPage(1),
+  ]);
 };

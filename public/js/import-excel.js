@@ -294,6 +294,8 @@ async function confirmImport() {
         nim:     row.nim,
         program: row.program || "Tidak Diketahui",
         year:    parseInt(row.year) || new Date().getFullYear(),
+        fakultas: row.fakultas || null,
+        tanggalLulus: row.tanggalLulus || null,
       });
 
       if (window.currentAlumniData) {

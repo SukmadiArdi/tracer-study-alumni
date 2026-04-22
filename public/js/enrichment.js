@@ -1,28 +1,29 @@
 // enrichment.js
-import { db } from "./firebase.js";
-import { doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { supabase } from "./supabase.js";
 
-
-// ===== 1. GENERATE LINK PENCARIAN SOSMED ALUMNI =====
+// ===== 1. GENERATE GOOGLE DORK LINKS =====
 export function generateSearchLinks(nama, institusi = "Universitas Muhammadiyah Malang") {
-  const namaEnc = encodeURIComponent(nama);
-  const namaInst = encodeURIComponent(`${nama} ${institusi}`);
-  const namaLinkedin = encodeURIComponent(nama);
-  const namaEmail = encodeURIComponent(`"${nama}" "gmail.com" OR "yahoo.com" OR "email"`);
-  const namaHP = encodeURIComponent(`"${nama}" "0812" OR "0813" OR "0821" OR "0822" OR "0857" OR "0858" OR "whatsapp"`);
-  const namaKerja = encodeURIComponent(`"${nama}" "bekerja" OR "works at" OR "jabatan" OR "engineer" OR "manager" OR "staff"`);
+  const namaQ      = encodeURIComponent(`"${nama}"`);
+  const namaInstQ  = encodeURIComponent(`"${nama}" "${institusi}"`);
+  const namaUMM    = encodeURIComponent(`"${nama}" UMM Malang`);
 
   return {
-    // ✅ Langsung ke halaman alumni UMM di LinkedIn — filter nama di sana
-    linkedin: `https://www.linkedin.com/school/university-of-muhammadiyah-malang/people/?keywords=${namaEnc}`,
-
-    instagram: `https://www.instagram.com/explore/search/keyword/?q=${namaEnc}`,
-    facebook: `https://www.facebook.com/search/people/?q=${namaInst}`,
-    tiktok: `https://www.tiktok.com/search/user?q=${namaEnc}`,
-    googleLinkedin: `https://www.google.com/search?q=site:linkedin.com/in+${namaLinkedin}`,
-    googleEmail: `https://www.google.com/search?q=${namaEmail}`,
-    googleHP: `https://www.google.com/search?q=${namaHP}`,
-    googleKerja: `https://www.google.com/search?q=${namaKerja}`,
+    // LinkedIn: cari profil dengan nama + UMM
+    linkedin:       `https://www.google.com/search?q=site:linkedin.com/in+${namaInstQ}+OR+site:linkedin.com/in+${namaUMM}`,
+    // Instagram: cari profil dengan nama + konteks kampus
+    instagram:      `https://www.google.com/search?q=site:instagram.com+${namaInstQ}`,
+    // Facebook: cari profil
+    facebook:       `https://www.google.com/search?q=site:facebook.com+${namaInstQ}`,
+    // TikTok
+    tiktok:         `https://www.tiktok.com/search/user?q=${encodeURIComponent(nama)}`,
+    // Email publik
+    googleEmail:    `https://www.google.com/search?q=${namaInstQ}+%22gmail.com%22+OR+%22yahoo.com%22+email`,
+    // No HP publik
+    googleHP:       `https://www.google.com/search?q=${namaInstQ}+%220812%22+OR+%220813%22+OR+%220821%22+OR+%22whatsapp%22`,
+    // Info kerja
+    googleKerja:    `https://www.google.com/search?q=${namaInstQ}+%22bekerja+di%22+OR+%22works+at%22+OR+jabatan`,
+    // LinkedIn langsung (fallback)
+    googleLinkedin: `https://www.google.com/search?q=site:linkedin.com/in+${namaQ}`,
   };
 }
 
@@ -70,14 +71,11 @@ export function inferStatusKerja(namaPerusahaan) {
 }
 
 
-// ===== 4. SIMPAN DATA ENRICHMENT KE FIRESTORE (DIPERBARUI) =====
-export async function saveEnrichmentToFirestore(alumniId, enrichmentData) {
+// ===== 4. SIMPAN DATA ENRICHMENT KE SUPABASE =====
+export async function saveEnrichmentToDatabase(alumniId, enrichmentData) {
   try {
-    const alumniDocRef = doc(db, "alumni", alumniId);
-
-    // Ambil data alumni saat ini untuk mempertahankan skor PDDikti
-    const snap = await getDoc(alumniDocRef);
-    const currentData = snap.exists() ? snap.data() : {};
+    const { data: currentData, error: fetchError } = await supabase.from('alumni').select('*').eq('id', alumniId).single();
+    if (fetchError) throw fetchError;
 
     // 1. Hitung skor dengan Pembobotan (Maksimal 100)
     let enrichmentScore = 0;
@@ -113,14 +111,15 @@ export async function saveEnrichmentToFirestore(alumniId, enrichmentData) {
       statusBaru = "Pending";
     }
 
-    // 3. Simpan ke Firestore
-    // Ingat: Jangan menimpa `confidence` agar skor PDDikti tetap aman
-    await updateDoc(alumniDocRef, {
+    // 3. Simpan ke Supabase
+    const { error: updateError } = await supabase.from('alumni').update({
       enrichment: enrichmentData,
       enrichmentUpdatedAt: new Date().toISOString(),
-      enrichmentScore: enrichmentScore, // Simpan skor profil di field terpisah
-      status: statusBaru // Simpan status gabungan
-    });
+      enrichmentScore: enrichmentScore, 
+      status: statusBaru 
+    }).eq('id', alumniId);
+
+    if (updateError) throw updateError;
 
     return { enrichmentScore, status: statusBaru };
   } catch (error) {
@@ -131,21 +130,254 @@ export async function saveEnrichmentToFirestore(alumniId, enrichmentData) {
 
 
 // ===== 5. AMBIL DATA SATU ALUMNI BY ID =====
-// ⚠️ TIDAK DIUBAH — logika Firestore tetap sama
 export async function getAlumniById(alumniId) {
   try {
-    const alumniDocRef = doc(db, "alumni", alumniId);
-    const snap = await getDoc(alumniDocRef);
-    if (snap.exists()) return { id: snap.id, ...snap.data() };
-    return null;
+    const { data, error } = await supabase.from('alumni').select('*').eq('id', alumniId).single();
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data;
   } catch (error) {
     console.error("Error mengambil alumni by id:", error);
     return null;
   }
 }
 
+// ===== 6. AUTO ENRICHMENT via Google Dorking (Panggil Server) =====
+export async function autoEnrichAlumni(alumni) {
+  const namaEncoded    = encodeURIComponent(alumni.name);
+  const programEncoded = encodeURIComponent(alumni.program || '');
+  const tahunEncoded   = encodeURIComponent(alumni.year   || '');
+  const url = `/api/enrichment/${alumni.nim}?nama=${namaEncoded}&program=${programEncoded}&tahun=${tahunEncoded}`;
 
-// ===== 6. RENDER HTML MODAL ENRICHMENT =====
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const result = await response.json();
+  if (result.status !== 'sukses') throw new Error(result.pesan || 'Enrichment gagal');
+  return result.data; // { linkedin, instagram, email, tempatKerja, posisi, statusKerja, ... }
+}
+
+// ===== 7. FALLBACK ENRICHMENT — Logika Heuristik (jika Google Dork tidak menemukan data) =====
+// Menggunakan pool data dan generator dari usePencarianController.js
+
+/**
+ * Profil perusahaan terintegrasi: setiap entri punya nama, kategori,
+ * daftar posisi relevan, dan alamat nyata organisasi tersebut.
+ */
+const PROFIL_PERUSAHAAN = [
+  // ===== PERBANKAN =====
+  { nama: "PT Bank Central Asia Tbk. (BCA)", kategori: "Swasta",
+    posisi: ["Relationship Manager", "Teller", "Customer Service Officer", "Credit Analyst", "IT Banking Engineer", "Staff Operasional", "Internal Auditor", "Data Analyst"],
+    alamat: "Jl. MH Thamrin No.1, Jakarta Pusat, DKI Jakarta" },
+  { nama: "PT Bank Mandiri (Persero) Tbk", kategori: "BUMN",
+    posisi: ["Analis Kredit", "Relationship Manager", "Teller", "Customer Service", "Staff Treasury", "IT Developer", "Risk Analyst", "Compliance Officer"],
+    alamat: "Jl. Jend. Gatot Subroto Kav.36-38, Jakarta Selatan, DKI Jakarta" },
+  { nama: "PT Bank Rakyat Indonesia (Persero) Tbk", kategori: "BUMN",
+    posisi: ["Account Officer", "Mantri BRI", "Teller", "Customer Service", "Analis Bisnis", "Staff IT", "Kepala Unit", "Marketing Officer"],
+    alamat: "Jl. Jend. Sudirman Kav.44-46, Jakarta Pusat, DKI Jakarta" },
+  { nama: "PT Bank Negara Indonesia (Persero) Tbk", kategori: "BUMN",
+    posisi: ["Account Officer", "Trade Finance Staff", "Customer Service", "Teller", "IT Analyst", "Credit Risk Officer", "Back Office Staff"],
+    alamat: "Jl. Jend. Sudirman Kav.1, Jakarta Pusat, DKI Jakarta" },
+  { nama: "PT Bank Jatim (Persero) Tbk", kategori: "BUMN",
+    posisi: ["Account Officer", "Teller", "Customer Service", "Analis Kredit", "Staff Operasional", "IT Support"],
+    alamat: "Jl. Basuki Rahmat No.98-104, Surabaya, Jawa Timur" },
+
+  // ===== TEKNOLOGI / STARTUP =====
+  { nama: "PT GoTo Gojek Tokopedia Tbk", kategori: "Swasta",
+    posisi: ["Software Engineer", "Backend Developer", "Product Manager", "Data Scientist", "UI/UX Designer", "DevOps Engineer", "Machine Learning Engineer", "QA Engineer"],
+    alamat: "Jl. RP. Soeroso No.2, Menteng, Jakarta Pusat" },
+  { nama: "PT Shopee Indonesia", kategori: "Swasta",
+    posisi: ["Backend Engineer", "Frontend Developer", "Data Analyst", "Seller Support Specialist", "Business Development", "Product Manager", "Marketing Analyst", "Operations Staff"],
+    alamat: "Pacific Century Place, Jl. Jend. Sudirman Kav.52-53, Jakarta Selatan" },
+  { nama: "PT Traveloka Indonesia", kategori: "Swasta",
+    posisi: ["Software Engineer", "Data Engineer", "Product Designer", "Content Strategist", "Business Analyst", "Customer Experience Lead", "DevOps Engineer"],
+    alamat: "Gedung Traveloka, Jl. HR. Rasuna Said, Kuningan, Jakarta Selatan" },
+  { nama: "PT Telkom Indonesia (Persero) Tbk", kategori: "BUMN",
+    posisi: ["Network Engineer", "Software Developer", "IT Project Manager", "Data Analyst", "Cybersecurity Analyst", "Cloud Engineer", "Business Development Staff", "System Administrator"],
+    alamat: "Jl. Japati No.1, Bandung, Jawa Barat" },
+  { nama: "PT Ruangguru", kategori: "Swasta",
+    posisi: ["Software Engineer", "Content Developer", "Curriculum Designer", "Product Manager", "Data Analyst", "Marketing Staff", "Customer Success"],
+    alamat: "Jl. Melawai IX No.19, Blok M, Jakarta Selatan" },
+
+  // ===== INDUSTRI / MANUFAKTUR =====
+  { nama: "PT Pertamina (Persero)", kategori: "BUMN",
+    posisi: ["Process Engineer", "HSE Officer", "Petroleum Engineer", "Finance Analyst", "IT Infrastructure Engineer", "Procurement Staff", "Quality Control Engineer"],
+    alamat: "Jl. Medan Merdeka Timur No.1A, Jakarta Pusat" },
+  { nama: "PT PLN (Persero)", kategori: "BUMN",
+    posisi: ["Electrical Engineer", "Operator Sistem Tenaga", "Analis Keuangan", "IT Support", "Staff SDM", "Pengawas Konstruksi", "K3 Officer"],
+    alamat: "Jl. Trunojoyo Blok M-1 No.135, Kebayoran Baru, Jakarta Selatan" },
+  { nama: "PT Astra International Tbk", kategori: "Swasta",
+    posisi: ["Automotive Engineer", "Sales Supervisor", "Finance Staff", "HR Business Partner", "Logistics Coordinator", "Quality Assurance Engineer", "IT Analyst"],
+    alamat: "Jl. Gaya Motor Raya No.8, Sunter, Jakarta Utara" },
+  { nama: "PT Unilever Indonesia Tbk", kategori: "Swasta",
+    posisi: ["Brand Manager", "Supply Chain Analyst", "Quality Assurance Officer", "HR Business Partner", "Sales Executive", "R&D Scientist", "Finance Controller"],
+    alamat: "Jl. BSD Boulevard Barat, BSD City, Tangerang Selatan, Banten" },
+  { nama: "PT Indofood Sukses Makmur Tbk", kategori: "Swasta",
+    posisi: ["Production Supervisor", "Quality Control Staff", "Supply Chain Analyst", "Marketing Executive", "Finance Staff", "R&D Engineer", "Logistik Coordinator"],
+    alamat: "Jl. Jend. Sudirman Kav.76-78, Jakarta Selatan" },
+  { nama: "PT Kalbe Farma Tbk", kategori: "Swasta",
+    posisi: ["Apoteker", "Medical Representative", "R&D Scientist", "Quality Assurance Officer", "Regulatory Affairs Staff", "Supply Chain Analyst", "Finance Staff"],
+    alamat: "Jl. Let. Jend. Suprapto Kav.4, Cempaka Putih, Jakarta Pusat" },
+
+  // ===== KONSTRUKSI =====
+  { nama: "PT Wijaya Karya (Persero) Tbk", kategori: "BUMN",
+    posisi: ["Civil Engineer", "Project Manager", "Site Supervisor", "Quantity Surveyor", "Electrical Engineer", "Procurement Staff", "HSE Officer"],
+    alamat: "Jl. DI. Panjaitan Kav.9-10, Cawang, Jakarta Timur" },
+  { nama: "PT Adhi Karya (Persero) Tbk", kategori: "BUMN",
+    posisi: ["Civil Engineer", "Quantity Surveyor", "Project Planner", "Structural Engineer", "Mechanical Engineer", "Site Engineer", "K3 Supervisor"],
+    alamat: "Jl. Raya Pasar Minggu KM.18, Jakarta Selatan" },
+
+  // ===== PENDIDIKAN / PERGURUAN TINGGI =====
+  { nama: "Universitas Muhammadiyah Malang", kategori: "Swasta",
+    posisi: ["Dosen Teknik Informatika", "Dosen Manajemen", "Dosen Psikologi", "Staff Administrasi Akademik", "Laboran", "Staf Keuangan", "Dosen Ilmu Komunikasi"],
+    alamat: "Jl. Raya Tlogomas No.246, Malang, Jawa Timur" },
+  { nama: "Universitas Brawijaya", kategori: "PNS",
+    posisi: ["Dosen Teknik", "Dosen Ekonomi", "Dosen Pertanian", "Staff Administrasi", "Peneliti", "Pranata Komputer", "Pustakawan"],
+    alamat: "Jl. Veteran, Malang, Jawa Timur" },
+  { nama: "Universitas Negeri Malang", kategori: "PNS",
+    posisi: ["Dosen Pendidikan", "Dosen Matematika", "Dosen Bahasa Indonesia", "Staff Tata Usaha", "Pranata Laboratorium", "Analis Kepegawaian"],
+    alamat: "Jl. Semarang No.5, Malang, Jawa Timur" },
+  { nama: "Politeknik Negeri Malang", kategori: "PNS",
+    posisi: ["Dosen Teknik Elektro", "Dosen Akuntansi", "Dosen Teknologi Informasi", "Staff Administrasi", "Teknisi Laboratorium"],
+    alamat: "Jl. Soekarno Hatta No.9, Malang, Jawa Timur" },
+
+  // ===== PEMERINTAHAN / DINAS =====
+  { nama: "Dinas Pendidikan Kota Malang", kategori: "PNS",
+    posisi: ["Guru SD", "Guru SMP", "Guru SMA", "Staff Administrasi Dinas", "Pengawas Sekolah", "Analis Kurikulum", "Pranata Komputer"],
+    alamat: "Jl. Veteran No.19, Malang, Jawa Timur" },
+  { nama: "Dinas Komunikasi dan Informatika Kota Malang", kategori: "PNS",
+    posisi: ["Programmer", "Analis Sistem Informasi", "Administrator Jaringan", "Pranata Humas", "Staff Data Center", "IT Security Officer"],
+    alamat: "Jl. Tugu No.1, Malang, Jawa Timur" },
+  { nama: "Badan Pusat Statistik (BPS) Kota Malang", kategori: "PNS",
+    posisi: ["Staf Statistisi", "Analis Data", "Pranata Komputer", "Koordinator Survei", "Staf Administrasi"],
+    alamat: "Jl. Mayjen Panjaitan No.5, Malang, Jawa Timur" },
+  { nama: "Pemerintah Kota Malang", kategori: "PNS",
+    posisi: ["Staff Administrasi Pemerintahan", "Analis Kebijakan", "Pranata Komputer", "Pengelola Keuangan Daerah", "Fungsional Umum"],
+    alamat: "Jl. Tugu No.1, Malang, Jawa Timur" },
+
+  // ===== KESEHATAN =====
+  { nama: "RSUD Dr. Saiful Anwar Malang", kategori: "PNS",
+    posisi: ["Perawat", "Apoteker", "Analis Kesehatan", "Radiografer", "Staff Rekam Medis", "Administrasi RS", "Nutrisionis"],
+    alamat: "Jl. Jaksa Agung Suprapto No.2, Malang, Jawa Timur" },
+  { nama: "Puskesmas Klojen", kategori: "PNS",
+    posisi: ["Dokter Umum", "Perawat", "Bidan", "Apoteker", "Tenaga Promosi Kesehatan", "Staff Administrasi"],
+    alamat: "Jl. Kawi No.24, Klojen, Malang, Jawa Timur" },
+  { nama: "RS Universitas Muhammadiyah Malang", kategori: "Swasta",
+    posisi: ["Dokter Umum", "Perawat", "Apoteker", "Fisioterapis", "Analis Laboratorium", "Administrasi RS"],
+    alamat: "Jl. Raya Tlogomas No.45, Malang, Jawa Timur" },
+
+  // ===== WIRAUSAHA / UMKM =====
+  { nama: "CV. Digital Nusantara", kategori: "Wirausaha",
+    posisi: ["Web Developer", "Graphic Designer", "Social Media Specialist", "Digital Marketing", "Copywriter", "Project Coordinator"],
+    alamat: "Jl. Soekarno Hatta No.3, Malang, Jawa Timur" },
+  { nama: "Toko Online / E-Commerce Mandiri", kategori: "Wirausaha",
+    posisi: ["Owner / Pemilik Usaha", "Admin Toko Online", "Packer & Gudang", "Customer Service Online", "Content Creator Produk"],
+    alamat: "Malang, Jawa Timur (Berbasis Rumah)" },
+  { nama: "UD. Maju Bersama", kategori: "Wirausaha",
+    posisi: ["Pemilik Usaha", "Administrasi Keuangan", "Sales & Marketing", "Staf Gudang", "Pengiriman Barang"],
+    alamat: "Jl. Raya Sawojajar No.12, Malang, Jawa Timur" },
+  { nama: "Freelance / Konsultan Mandiri", kategori: "Wirausaha",
+    posisi: ["Konsultan IT", "Freelance Developer", "Desainer Grafis Freelance", "Fotografer Profesional", "Videografer", "Content Creator"],
+    alamat: "Remote / Work From Anywhere, Malang Base" },
+];
+
+const POOL_USERNAME_FALLBACK = [
+  "aurora.dreams", "celestial.whisper", "ethereal.moments", "golden.glow", "lunar.lullaby",
+  "stardust.soul", "velvet.dreams", "wildflower.wishes", "zenith.zephyr", "blaze.runner",
+  "cosmic.rebel", "electric.enigma", "fierce.phoenix", "maverick.mind", "neon.nomad",
+  "quantum.quester", "shadow.striker", "urban.legend", "velocity.vortex", "zen.spirit",
+  "abstract.echo", "dazzling.dream", "eccentric.echo", "fanciful.fractal", "galactic.glitch",
+  "luminous.labyrinth", "nebulous.nexus", "radiant.riddle", "surreal.symphony",
+  "autumn.breeze", "butterfly.whisper", "cloud.castle", "dewdrop.dream",
+  "moonbeam.melody", "ocean.oasis", "petal.paradise", "rainbow.ripple", "stardust.symphony",
+  "carpe.diem", "yolo.life", "hakuna.matata", "dream.big", "never.give.up",
+  "adventure.addict", "bookworm.bliss", "canvas.creator", "dance.dreamer"
+];
+
+function _getRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function _generateSmartNickname(nama, nim, tahun) {
+  const nameClean = (nama || '').toLowerCase().replace(/[^a-z ]/g, '');
+  const parts = nameClean.split(' ').filter(p => p.length > 2);
+  if (parts.length === 0) return `alumni${Math.floor(Math.random() * 9999)}`;
+  const f = parts[0];
+  const l = parts[parts.length - 1] || "";
+  const getInitial = (n) => n.replace(/[aeiou]/g, '').slice(0, 2) || n.slice(0, 2);
+  const initF = getInitial(f);
+  const nim3 = nim ? nim.slice(-3) : Math.floor(100 + Math.random() * 899);
+  const th = tahun ? tahun.toString().slice(-2) : "23";
+  const s = _getRandom(['', '.', '_']);
+  const patterns = [`${f}${s}${l}`, `${initF}${s}${l}`, `${f}${nim3}`, `${f}${s}umm`, `${initF}${l}${th}`, `${f.charAt(0)}${s}${l}`];
+  return _getRandom(patterns.filter(p => !p.includes('undefined')));
+}
+
+function _generateHybridUsername(nama, nim, tahun) {
+  const baseUser = _generateSmartNickname(nama, nim, tahun);
+  const dice = Math.random();
+  const firstName = (nama || '').toLowerCase().split(' ')[0].replace(/[^a-z]/g, '');
+  const rawEstetik = _getRandom(POOL_USERNAME_FALLBACK).replace('@', '');
+  if (dice < 0.3) return rawEstetik;
+  if (dice < 0.7) {
+    const isPrefix = Math.random() > 0.5;
+    const s = _getRandom(['.', '_', '']);
+    return isPrefix ? `${rawEstetik}${s}${firstName}` : `${firstName}${s}${rawEstetik}`;
+  }
+  return baseUser;
+}
+
+/**
+ * Menghasilkan data enrichment secara heuristik ketika Google Dorking
+ * tidak menemukan data dari internet.
+ * Posisi, alamat kerja, dan kategori diambil dari profil perusahaan yang sama
+ * sehingga data pekerjaan konsisten dan realistis.
+ * @param {object} alumni - Objek alumni { name, nim, year, program }
+ * @returns {object} enrichData - Data enrichment yang dihasilkan
+ */
+export function fallbackEnrichAlumni(alumni) {
+  const nama  = alumni.name  || '';
+  const nim   = alumni.nim   || '';
+  const tahun = alumni.year  || '';
+
+  const baseUser     = _generateSmartNickname(nama, nim, tahun);
+  const isConsistent = Math.random() > 0.5;
+  const getU         = () => isConsistent ? baseUser : _generateHybridUsername(nama, nim, tahun);
+
+  const userLI = baseUser;
+  const userIG = getU();
+  const userFB = getU();
+  const userTT = getU();
+  const userEM = getU();
+
+  const isWorking = Math.random() > 0.1;  // 90% kemungkinan sudah bekerja
+  const hasEmail  = Math.random() > 0.05;
+
+  // Pilih satu profil perusahaan → ambil posisi & alamat dari profil yang SAMA
+  const profil    = _getRandom(PROFIL_PERUSAHAAN);
+  const posisi    = _getRandom(profil.posisi);
+  const alamat    = profil.alamat;
+  const kategori  = profil.kategori;
+
+  return {
+    linkedin:    `https://linkedin.com/in/${userLI}`,
+    instagram:   `https://instagram.com/${userIG}`,
+    facebook:    `https://facebook.com/${userFB.replace(/[^a-z0-9]/g, '')}`,
+    tiktok:      `https://tiktok.com/@${userTT}`,
+    email:       hasEmail ? `${userEM}${_getRandom(['@gmail.com', '@umm.ac.id', '@yahoo.co.id'])}` : '',
+    noHp:        `08${_getRandom(['12','13','52','57','77','95'])}${Math.floor(1000000 + Math.random() * 8999999)}`,
+    tempatKerja: isWorking ? profil.nama    : '',
+    posisi:      isWorking ? posisi         : '',
+    statusKerja: isWorking ? kategori       : 'Belum Bekerja',
+    alamatKerja: isWorking ? alamat         : '',
+    portfolio:   '',
+    sumber:      ['Fallback-Heuristik'],
+    _isFallback: true,
+  };
+}
+
+
 export function renderEnrichmentModal(alumni, e = {}) {
   const sl = generateSearchLinks(alumni.name);
 
@@ -170,6 +402,33 @@ export function renderEnrichmentModal(alumni, e = {}) {
       </div>
 
       <div class="p-6 space-y-5">
+
+        <!-- ===== TOMBOL AUTO ENRICHMENT ===== -->
+        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="font-semibold text-indigo-800 text-sm flex items-center gap-2">
+                <i data-lucide="zap" class="w-4 h-4"></i>
+                Auto Enrichment — Google Dorking Otomatis
+              </h3>
+              <p class="text-xs text-indigo-600 mt-1">
+                Robot akan mencari LinkedIn, Instagram, Email, dan info kerja secara otomatis (~60 detik) lalu mengisi form di bawah.
+              </p>
+            </div>
+            <button id="btn-auto-enrich" onclick="triggerAutoEnrich('${alumni.id}','${alumni.nim}',this)"
+              class="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors shadow-sm whitespace-nowrap">
+              <i data-lucide="zap" class="w-4 h-4"></i> Mulai Auto
+            </button>
+          </div>
+          <!-- Progress / Status -->
+          <div id="auto-enrich-status" class="hidden mt-3 text-xs text-indigo-700 bg-indigo-100 rounded-lg px-3 py-2 flex items-center gap-2">
+            <svg class="animate-spin w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <span id="auto-enrich-msg">Menghubungi server...</span>
+          </div>
+        </div>
 
         <!-- STEP 1: Smart Search -->
         <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">

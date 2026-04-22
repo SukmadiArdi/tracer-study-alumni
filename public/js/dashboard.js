@@ -38,19 +38,28 @@ export function renderActivities() {
 
 
 // ===== UPDATE DASHBOARD STATS & PROGRESS BAR =====
-export function updateDashboard(alumniList = []) {
-  const total      = alumniList.length;
-  const identified = alumniList.filter(a => a.status === "Identified").length;
-  const pending    = alumniList.filter(a => a.status === "Pending").length;
-  const notFound   = alumniList.filter(a => a.status === "Not Found").length;
-  const enriched   = alumniList.filter(a =>
-    a.enrichment && Object.values(a.enrichment).some(v => v && v.toString().trim() !== "")
-  ).length;
+export function updateDashboard(alumniListOrStats = []) {
+  let total, identified, pending, notFound, enriched;
+
+  // Terima format baru (object stats dari getAlumniStats())
+  if (!Array.isArray(alumniListOrStats)) {
+    ({ total = 0, identified = 0, pending = 0, notFound = 0, enriched = 0 } = alumniListOrStats);
+  } else {
+    // Format lama (array) — tetap didukung untuk kompatibilitas
+    const list = alumniListOrStats;
+    total      = list.length;
+    identified = list.filter(a => a.status === "Identified").length;
+    pending    = list.filter(a => a.status === "Pending").length;
+    notFound   = list.filter(a => a.status === "Not Found").length;
+    enriched   = list.filter(a =>
+      a.enrichment && Object.values(a.enrichment).some(v => v && v.toString().trim() !== "")
+    ).length;
+  }
 
   // === Stat cards ===
   const set = (id, val) => {
     const el = document.getElementById(id);
-    if (el) el.textContent = val;
+    if (el) el.textContent = val.toLocaleString();
   };
   set("stat-total",      total);
   set("stat-identified", identified);
@@ -73,6 +82,10 @@ export function updateDashboard(alumniList = []) {
   set("stat-identified-2", identified);
   set("stat-pending-2",    pending);
   set("stat-not-found-2",  notFound);
+  set("stat-enriched-2",   enriched);
+
+  const barEnriched   = document.getElementById("bar-enriched");
+  if (barEnriched)   barEnriched.style.width   = `${pct(enriched)}%`;
 
   // Render activity juga supaya tetap tampil
   renderActivities();
