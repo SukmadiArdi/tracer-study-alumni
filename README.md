@@ -1,22 +1,21 @@
 # Alumni Tracer Study System
 ### Sistem Informasi Tracer Study Alumni — Universitas Muhammadiyah Malang
 
-Web-based tracer study system untuk melacak data karir dan sosial media alumni UMM secara efisien.
+Web-based tracer study system untuk melacak data karir, sosial media, dan memvalidasi status kelulusan alumni UMM secara efisien.
 
 ---
 
 ## ✨ Fitur Utama
 
-- **Admin Login** — Autentikasi aman menggunakan Firebase Authentication
-- **Manajemen Alumni** — Tambah, lihat, hapus, dan filter data alumni
-- **Import Excel** — Upload data alumni massal dari file `.xlsx`
-- **Enrichment Data** — Pencarian semi-otomatis ke LinkedIn (UMM), Instagram, Facebook, TikTok, dan Google
-- **Smart Search** — Cari email, nomor HP, dan info kerja alumni via Google operator
-- **Inferensi Status Kerja** — Otomatis mendeteksi PNS / Swasta / Wirausaha dari nama perusahaan
-- **Confidence Score** — Skor kelengkapan data (0–100%) per alumni
-- **Verifikasi Manual** — Konfirmasi data alumni oleh admin
-- **Dashboard Real-time** — Statistik progress pelacakan alumni (Identified, Pending, Not Found)
-- **Toast Notification** — Feedback interaktif untuk setiap aksi pengguna
+- **Admin Login** — Autentikasi aman menggunakan Supabase Authentication
+- **Manajemen Alumni** — Tambah, lihat, hapus, dan filter data alumni secara real-time
+- **Import & Export Excel** — Upload data massal dari `.xlsx` dan unduh laporan hasil evaluasi metrik akurasi
+- **Verifikasi PDDikti Otomatis (Direct API Intercept)** — Validasi data mahasiswa/lulusan langsung dari API PDDikti Kemdikbud secara super cepat
+- **Auto Enrichment (Google Dorking & Heuristic)** — Pelacakan otomatis jejak digital (LinkedIn, Instagram, Portofolio, Info Kerja) menggunakan *headless browser* (Puppeteer) dan *Fallback Heuristik*
+- **Inferensi Status Kerja** — Otomatis mendeteksi instansi (PNS / Swasta / Wirausaha) dari nama perusahaan
+- **Accuracy Dashboard & Metrics** — Mengukur tingkat keberhasilan pelacakan (Coverage, Accuracy, Completeness) berdasarkan formula standar akademik
+- **Batch Processing** — Memproses sinkronisasi PDDikti dan *Auto-Enrichment* untuk ribuan data sekaligus dalam satu klik
+- **Verifikasi Manual** — Konfirmasi status hasil pelacakan sistem (Identified, Pending, Not Found) oleh admin
 
 ---
 
@@ -24,33 +23,44 @@ Web-based tracer study system untuk melacak data karir dan sosial media alumni U
 
 | Teknologi | Fungsi |
 |---|---|
-| HTML5 + TailwindCSS | Tampilan antarmuka |
-| JavaScript ES Module | Logika aplikasi frontend |
-| Firebase Authentication | Login & autentikasi admin |
-| Firebase Firestore | Database cloud real-time |
-| SheetJS (XLSX 0.20.2) | Import data Excel |
+| **Frontend** | |
+| HTML5 + Vanilla CSS + TailwindCSS | Tampilan antarmuka yang modern dan responsif |
+| JavaScript ES Module | Logika aplikasi sisi *client* |
+| SheetJS (XLSX) | Manipulasi Import & Export file Excel |
 | Lucide Icons | Ikon antarmuka |
+| **Backend & Database** | |
+| Node.js + Express | Server API lokal/production (*Proxy* & *Web Scraper*) |
+| Puppeteer (Stealth Plugin) | Ekstraksi hasil Google Search (*Web Scraping*) |
+| Supabase (PostgreSQL) | Database relasional cloud & Autentikasi Admin |
 
 ---
 
-## 📁 Struktur File
+## 📁 Struktur Utama
 
 ```
-├── index.html          → Halaman utama & UI
-├── firebase.js         → Konfigurasi Firebase
-├── main.js             → Controller utama & event handler
-├── alumni.js           → CRUD data alumni (Firestore)
-├── enrichment.js       → Smart Search & simpan enrichment
-└── import-excel.js     → Modul import file Excel
+├── public/                 → Folder aset frontend (UI)
+│   ├── index.html          → Halaman utama Dashboard & Tabel
+│   ├── css/index.css       → Styling Tailwind
+│   └── js/
+│       ├── main.js         → Controller utama & event handler UI
+│       ├── supabase.js     → Konfigurasi client Supabase
+│       ├── alumni.js       → Logika CRUD data ke PostgreSQL
+│       ├── dashboard.js    → Logika kalkulasi metrik & export data
+│       ├── tracking.js     → Logika sinkronisasi PDDikti (Direct API)
+│       └── enrichment.js   → Logika Smart Search, Google Dork & Heuristic
+├── server.js               → Server Node.js (PDDikti Proxy & Puppeteer Scraper)
+├── schema.sql              → Struktur tabel database PostgreSQL
+└── schema_functions.sql    → Custom RPC (Remote Procedure Call) metrik evaluasi
 ```
 
 ---
 
 ## 🚀 Deployment
 
-**Live Website:** https://username.github.io/tracer-study-alumni/
+Karena aplikasi ini menggunakan Puppeteer dan akses API yang membutuhkan Server, aplikasi ini dibagi menjadi dua arsitektur deployment:
 
-**GitHub Repository:** https://github.com/username/tracer-study-alumni
+- **Frontend (UI)**: Di-deploy ke platform statis/modern seperti **Vercel** atau **Netlify**.
+- **Backend (Node.js API)**: Di-deploy ke platform yang mendukung Node.js & Docker (untuk *headless browser*) seperti **Railway.app** atau **Render.com**.
 
 ---
 
@@ -58,32 +68,28 @@ Web-based tracer study system untuk melacak data karir dan sosial media alumni U
 
 | Aspek | Deskripsi |
 |---|---|
-| Functionality | Semua operasi CRUD dan enrichment berjalan |
-| Usability | Dashboard minimalis dan mudah digunakan |
-| Efficiency | Data diambil real-time dari Firebase Firestore |
-| Reliability | Database cloud mencegah kehilangan data |
+| Functionality | Seluruh siklus CRUD, verifikasi eksternal, dan kalkulasi statistik berfungsi penuh |
+| Usability | UI Dashboard dirancang intuitif untuk pemrosesan data berjumlah masif (ribuan baris) |
+| Performance | Direct API Intercept memotong waktu verifikasi menjadi hitungan milidetik per data |
+| Reliability | Database PostgreSQL + Supabase menjaga konsistensi tipe data relasional dengan sangat ketat |
 
 ---
 
 ## 🧪 System Testing (Quality Assurance)
 
-Pengujian aplikasi **Alumni Tracer Study System** dilakukan untuk memastikan bahwa seluruh antarmuka, logika bisnis, dan integrasi *database* (Firebase) berjalan sesuai dengan aspek kualitas yang telah ditentukan.
+Pengujian aplikasi **Alumni Tracer Study System** dilakukan untuk memastikan bahwa antarmuka, logika bisnis, perhitungan skor metrik, dan sinkronisasi eksternal berjalan dengan baik.
 
 | ID | Aspek Kualitas | Fitur yang Diuji | Skenario Pengujian | Ekspektasi Hasil | Status |
 | :--- | :--- | :--- | :--- | :--- | :---: |
-| **F-01** | Functionality | Autentikasi (Login) | Memasukkan kredensial admin yang valid. | Pengguna berhasil masuk dan dialihkan ke halaman *Dashboard*. | ✅ PASS |
-| **F-02** | Functionality | Autentikasi (Login) | Memasukkan kredensial admin yang salah. | Sistem menolak akses dan memunculkan pesan error. | ✅ PASS |
-| **F-03** | Functionality | Create Alumni | Menambahkan data alumni baru via form Modal. | Modal tertutup, data tersimpan di *database*, dan muncul di tabel. | ✅ PASS |
-| **F-04** | Functionality | Delete Alumni | Menekan tombol hapus lalu konfirmasi. | Data terhapus dari *database* dan baris hilang dari tabel. | ✅ PASS |
-| **F-05** | Functionality | Filter & Pencarian | Mengetikkan nama/NIM atau mengubah *dropdown* prodi/tahun/status. | Tabel memperbarui data yang ditampilkan secara *real-time*. | ✅ PASS |
-| **F-06** | Functionality | Import Excel | Upload file `.xlsx` berisi data alumni. | Semua baris tersimpan ke Firestore dan muncul di tabel. | ✅ PASS |
-| **F-07** | Functionality | Enrichment Data | Mengisi form enrichment dan klik Simpan Data. | Data sosmed & pekerjaan tersimpan, confidence score terupdate. | ✅ PASS |
-| **F-08** | Functionality | Smart Search | Klik tombol LinkedIn / Google di modal enrichment. | Tab baru terbuka dengan hasil pencarian yang relevan. | ✅ PASS |
-| **F-09** | Functionality | Inferensi Status Kerja | Ketik nama perusahaan mengandung kata kunci PNS/Wirausaha. | Status pekerjaan terisi otomatis. | ✅ PASS |
-| **F-10** | Functionality | Verifikasi Manual | Mengklik tombol Confirm pada halaman Verifikasi Manual. | Status alumni menjadi Identified, antrean verifikasi berkurang. | ✅ PASS |
-| **U-01** | Usability | Dashboard Statistik | Memuat halaman Dashboard setelah ada perubahan data. | Statistik angka dan progress bar ter-*update* dengan akurat. | ✅ PASS |
-| **U-02** | Usability | User Feedback | Melakukan aksi CRUD atau enrichment. | Muncul notifikasi *toast* sebagai feedback keberhasilan/gagal. | ✅ PASS |
-| **R-01** | Reliability | Persistensi Data | Melakukan *refresh* halaman (F5). | Data alumni tetap tampil karena tersimpan di Firestore cloud. | ✅ PASS |
+| **F-01** | Functionality | Autentikasi (Login) | Memasukkan kredensial admin yang valid via Supabase. | Pengguna berhasil masuk dan session token tersimpan. | ✅ PASS |
+| **F-02** | Functionality | Import Data Massal | Upload file `.xlsx` berisi >1000 baris. | Data diproses bertahap (batch insertion) ke Supabase. | ✅ PASS |
+| **F-03** | Functionality | Verifikasi PDDikti | Klik tombol Track pada salah satu profil alumni. | *Direct API fetch* berhasil mengambil status lulusan tanpa di-blokir CORS. | ✅ PASS |
+| **F-04** | Functionality | Batch Verification | Jalankan sinkronisasi PDDikti secara massal. | Progress bar berjalan mulus, sistem memberikan jeda otomatis menghindari rate-limit. | ✅ PASS |
+| **F-05** | Functionality | Auto Enrichment | Klik "Mulai Auto" di modal enrichment. | Node.js Server melakukan Google Dorking dan mengembalikan data (atau fallback heuristik). | ✅ PASS |
+| **F-06** | Functionality | Metrik Dashboard | Merubah status alumni di database lalu memuat ulang. | Skor Coverage, Accuracy, dan Completeness langsung terkalkulasi oleh *RPC PostgreSQL*. | ✅ PASS |
+| **F-07** | Functionality | Export Excel | Klik "Unduh Hasil Evaluasi" pada dashboard. | File Excel `.xlsx` terunduh dengan detail kolom No, Nama, NIM, Status, Nilai, & Sosmed. | ✅ PASS |
+| **U-01** | Usability | Filter & Search | Mencari nama dengan huruf kecil/besar di kolom pencarian. | Hasil tabel mem-filter data secara efisien tanpa *lag*. | ✅ PASS |
+| **R-01** | Reliability | Data Persistence | Memuat ulang (Refresh) browser saat memproses batch enrichment. | Sistem bisa dilanjutkan dari posisi terakhir tanpa merusak database. | ✅ PASS |
 
 ---
 
