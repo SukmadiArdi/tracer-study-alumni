@@ -45,211 +45,78 @@ function normalisasiNama(nama) {
         .trim();
 }
 
-// Endpoint API untuk mencari data PDDikti (4 kriteria: nama, NIM, PT, prodi)
+// Endpoint API untuk mencari data PDDikti (Cek ketersediaan NIM via API JSON langsung — tanpa Puppeteer)
 app.get('/api/pddikti/:nim', async (req, res) => {
     const nimYangDicari = req.params.nim;
-    const namaRaw       = (req.query.nama      || "").trim();
-    const programRaw    = (req.query.program   || "").trim();
-    const perguruanRaw  = (req.query.perguruan || "Universitas Muhammadiyah Malang").trim();
+    console.log(`\n🔍 [PDDikti] Cek NIM: ${nimYangDicari}`);
 
-    const namaAlumni    = normalisasiNama(namaRaw);
-    const programAlumni = normalisasiNama(programRaw);
-    const ptAlumni      = normalisasiNama(perguruanRaw);
-
-    console.log(`\n🔍 [Mulai] NIM: ${nimYangDicari} | Nama: "${namaAlumni}" | PT: "${ptAlumni}" | Prodi: "${programAlumni}"`);
-
-    let browser;
     try {
-        // 1. BUKA BROWSER SECARA SEMBUNYI-SEMBUNYI LAGI (KARENA TIDAK ADA CAPTCHA)
-        browser = await puppeteer.launch({
-            headless: true, // Wajib TRUE di server cloud
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage', // Mencegah RAM penuh tiba-tiba
-                '--single-process'
-            ]
+        // Langsung hit API JSON resmi PDDikti (ditemukan dari monitoring Network Tab)
+        const apiUrl = `https://api-pddikti.kemdiktisaintek.go.id/pencarian/mhs/${nimYangDicari}/`;
+        
+        const response = await fetch(apiUrl, {
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+                'Referer': 'https://pddikti.kemdiktisaintek.go.id/',
+                'Origin': 'https://pddikti.kemdiktisaintek.go.id',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            },
+            signal: AbortSignal.timeout(10000) // Timeout 10 detik
         });
-        const page = await browser.newPage();
 
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-        page.setDefaultTimeout(60000); // Timeout maksimal 60 detik per operasi
-
-        // ==========================================
-        // LANGKAH 1: MASUK KE HALAMAN PENCARIAN
-        // ==========================================
-        console.log(`🌐 [Langkah 1] Membuka pencarian untuk NIM: ${nimYangDicari}`);
-        const urlPencarian = `https://pddikti.kemdiktisaintek.go.id/search/mahasiswa/${nimYangDicari}`;
-        await page.goto(urlPencarian, { waitUntil: 'networkidle2', timeout: 30000 });
-
-        await jedaAman(12000); // Tunggu React SPA render hasil pencarian
-
-        // ==========================================
-        // LANGKAH 1b: COCOKKAN 4 KRITERIA DI HASIL PENCARIAN
-        // ==========================================
-        console.log("🕵️ Mencocokkan: Nama + NIM + Perguruan Tinggi + Program Studi...");
-        const hasilCocok = await page.evaluate((kriteria) => {
-            // Fungsi normalisasi (harus diduplikasi karena berjalan di konteks browser)
-            function bersih(str) {
-                return (str || '')
-                    .toLowerCase()
-                    .replace(/\b(drs?|dr|prof|ir|hj?|m\.?si|s\.?kom|s\.?pd|s\.?h|m\.?m|m\.?pd|apt|st|se)\b\.?/gi, '')
-                    .replace(/[''`'"]/g, ' ')
-                    .replace(/[-_]/g, ' ')
-                    .replace(/[^a-z0-9\s]/g, '')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-            }
-
-            const semuaKartu = document.querySelectorAll('a[href*="/detail-mahasiswa/"]');
-            if (semuaKartu.length === 0) return { href: null, skor: 0, alasan: 'Tidak ada hasil' };
-
-            // Jika hanya 1 hasil, langsung ambil
-            if (semuaKartu.length === 1) {
-                return { href: semuaKartu[0].href, skor: 100, alasan: 'Hasil tunggal' };
-            }
-
-            let kandidatTerbaik = { href: null, skor: -1, alasan: '' };
-
-            for (let kartu of semuaKartu) {
-                // Ambil seluruh teks di card (nama + info lainnya)
-                const container = kartu.closest('li, tr, [class*="card"], [class*="item"], [class*="result"]')
-                                  || kartu.parentElement || kartu;
-                const teksMentah = (container.innerText || kartu.innerText || '').toLowerCase();
-                const teksBersih = bersih(teksMentah);
-
-                let skor = 0;
-                let detail = [];
-
-                // ===== KRITERIA 1: NAMA (Bobot 40) =====
-                if (kriteria.nama) {
-                    const namaWords = kriteria.nama.split(' ').filter(w => w.length > 2);
-                    const namaMatch = namaWords.filter(w => teksBersih.includes(w)).length;
-                    const namaRatio = namaWords.length > 0 ? namaMatch / namaWords.length : 0;
-                    const nilaiNama = Math.round(namaRatio * 40);
-                    skor += nilaiNama;
-                    detail.push(`Nama:${nilaiNama}/40`);
-                }
-
-                // ===== KRITERIA 2: NIM (Bobot 30) =====
-                if (kriteria.nim && teksMentah.includes(kriteria.nim)) {
-                    skor += 30;
-                    detail.push('NIM:30/30');
-                } else {
-                    detail.push('NIM:0/30');
-                }
-
-                // ===== KRITERIA 3: PERGURUAN TINGGI (Bobot 20) =====
-                if (kriteria.pt) {
-                    const ptWords = kriteria.pt.split(' ').filter(w => w.length > 3);
-                    const ptMatch = ptWords.some(w => teksBersih.includes(w));
-                    if (ptMatch) { skor += 20; detail.push('PT:20/20'); }
-                    else detail.push('PT:0/20');
-                }
-
-                // ===== KRITERIA 4: PROGRAM STUDI (Bobot 10) =====
-                if (kriteria.program) {
-                    const prodiWords = kriteria.program.split(' ').filter(w => w.length > 3);
-                    const prodiMatch = prodiWords.some(w => teksBersih.includes(w));
-                    if (prodiMatch) { skor += 10; detail.push('Prodi:10/10'); }
-                    else detail.push('Prodi:0/10');
-                }
-
-                if (skor > kandidatTerbaik.skor) {
-                    kandidatTerbaik = { href: kartu.href, skor, alasan: detail.join(' | ') };
-                }
-            }
-
-            return kandidatTerbaik;
-        }, { nama: namaAlumni, nim: nimYangDicari, pt: ptAlumni, program: programAlumni });
-
-        console.log(`   📊 Skor terbaik: ${hasilCocok.skor}/100 → ${hasilCocok.alasan}`);
-
-        // Hanya lanjut jika skor cukup (minimal nama atau NIM cocok)
-        if (!hasilCocok.href || hasilCocok.skor < 30) {
-            throw new Error(`Tidak ada kartu yang cocok untuk NIM ${nimYangDicari} (skor: ${hasilCocok.skor})`);
+        if (!response.ok) {
+            console.log(`⚠️ API PDDikti merespon ${response.status} untuk NIM ${nimYangDicari}`);
+            return res.json({ status: 'sukses', data: null });
         }
 
-        const linkDetail = hasilCocok.href;
+        const rawText = await response.text();
+        const data = JSON.parse(rawText);
+        
+        let ditemukan = null;
 
-        // ==========================================
-        // LANGKAH 2: MASUK KE HALAMAN BIODATA DETAIL
-        // ==========================================
-        console.log(`🚀 [Langkah 2] Melompat ke halaman biodata: ${linkDetail}`);
-        await page.goto(linkDetail, { waitUntil: 'networkidle2', timeout: 30000 });
-
-        await jedaAman(12000); // Tunggu halaman biodata terbuka sempurna
-
-        // ==========================================
-        // LANGKAH 3: SEDOT DATA (DOM TRAVERSAL)
-        // ==========================================
-        console.log("📖 Sedang mengekstrak data dari halaman biodata...");
-
-        const hasilScraping = await page.evaluate(() => {
-            try {
-                /* CATATAN UNTUK ARDI: 
-                   Di halaman "detail-mahasiswa", struktur HTML-nya mungkin berbeda dari pencarian.
-                   Jika bukan tag <p>, kamu bisa ganti 'p' di bawah ini menjadi 'td', 'span', atau 'div'
-                   tergantung hasil Inspect Element-mu di halaman detail!
-                */
-                const semuaTeks = document.querySelectorAll('p, div, span, td');
-
-                let nama = "";
-                let prodi = "";
-                let tahunMasuk = "";
-                let statusLulus = "";
-
-                for (let elemen of semuaTeks) {
-                    let teksLabel = elemen.innerText.trim();
-
-                    if (teksLabel === "Nama" || teksLabel === "Nama Mahasiswa") {
-                        nama = elemen.nextElementSibling ? elemen.nextElementSibling.innerText.trim() : "";
-                    }
-                    else if (teksLabel === "Tanggal Masuk" || teksLabel === "Mulai Semester") {
-                        tahunMasuk = elemen.nextElementSibling ? elemen.nextElementSibling.innerText.trim() : "";
-                    }
-                    else if (teksLabel === "Jenjang - Program Studi" || teksLabel === "Program Studi") {
-                        prodi = elemen.nextElementSibling ? elemen.nextElementSibling.innerText.trim() : "";
-                    }
-                    else if (teksLabel === "Status Terakhir Mahasiswa" || teksLabel === "Status Mahasiswa Saat ini") {
-                        statusLulus = elemen.nextElementSibling ? elemen.nextElementSibling.innerText.trim() : "";
-                    }
-                }
-
-                return {
-                    nama: nama || "ACHMAD ARDI SUKMADI",
-                    programStudi: prodi || "Sarjana - Informatika",
-                    tanggalMasuk: tahunMasuk || "2023",
-                    statusTerakhir: statusLulus || "Lulus-2024/2025 Genap",
-                    nim: document.querySelector('.nim') ? document.querySelector('.nim').innerText : "202510..."
-                };
-            } catch (err) {
-                return null;
-            }
-        });
-
-        if (!hasilScraping) {
-            throw new Error("Gagal membaca elemen HTML di PDDikti");
+        // Format 1: API mengembalikan satu objek langsung (NIM exact match)
+        // Contoh: { id, nim, nama, nama_pt, nama_prodi, ... }
+        if (data?.nim === nimYangDicari) {
+            ditemukan = data;
+        }
+        // Format 2: API mengembalikan daftar (fuzzy search)
+        // Contoh: { mahasiswa: [...], Count: 50 }
+        else if (Array.isArray(data?.mahasiswa)) {
+            ditemukan = data.mahasiswa.find(m => m.nim === nimYangDicari) || null;
+        }
+        // Fallback: cek apakah NIM muncul di raw JSON body
+        else if (rawText.includes(nimYangDicari)) {
+            ditemukan = { nim: nimYangDicari, nama: '—', nama_pt: 'UMM', nama_prodi: '—' };
         }
 
-        console.log(`✅ Data NIM ${nimYangDicari} berhasil dikirim ke Frontend!\n`);
-
-        // 5. Kembalikan hasil ke Frontend
-        res.json({
-            status: "sukses",
-            data: hasilScraping
-        });
+        if (ditemukan) {
+            console.log(`✅ NIM ${nimYangDicari} DITEMUKAN: ${ditemukan.nama} (${ditemukan.nama_prodi})`);
+            res.json({
+                status: 'sukses',
+                data: {
+                    nim: ditemukan.nim,
+                    nama: ditemukan.nama,
+                    namaPt: ditemukan.nama_pt,
+                    namaProdi: ditemukan.nama_prodi,
+                    keterangan: 'Ditemukan di PDDikti'
+                }
+            });
+        } else {
+            console.log(`❌ NIM ${nimYangDicari} tidak ditemukan di antara ${data?.mahasiswa?.length || 0} hasil.`);
+            res.json({ status: 'sukses', data: null });
+        }
 
     } catch (error) {
-        console.error("❌ Terjadi kesalahan saat scraping:", error.message);
-        res.status(500).json({ status: "error", pesan: "Gagal menarik data dari PDDikti" });
-    } finally {
-        if (browser) await browser.close(); // Pastikan browser ditutup agar RAM tidak penuh
+        console.error(`❌ Gagal menghubungi API PDDikti:`, error.message);
+        res.status(500).json({ status: 'error', pesan: 'Gagal menghubungi API PDDikti' });
     }
 });
 
+
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server Backend menyala di port ${PORT}`);
+    console.log(`🚀 Server Backend menyala!`);
+    console.log(`   ➜  Local:   http://localhost:${PORT}`);
+    console.log(`   ➜  Network: http://0.0.0.0:${PORT}`);
 });
 
 
@@ -324,23 +191,21 @@ app.get('/api/enrichment/:nim', async (req, res) => {
         page.setDefaultTimeout(30000);
 
         // --------------------------------------------------------
-        // CORE HELPER: Scrape Google SERP dengan waitForSelector
+        // CORE HELPER: Scrape Google SERP (Selector diperbarui 2025)
         // --------------------------------------------------------
         async function googleDork(query, maxHasil = 8) {
             const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=10&hl=id&gl=id`;
             console.log(`   🔍 ${query.substring(0, 100)}`);
             try {
-                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+                // networkidle2: tunggu sampai JS selesai render (penting untuk Google)
+                await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+                await jedaManusia(2000, 4000);
 
-                // Tunggu container utama Google SERP (ID stabil)
-                await page.waitForSelector('#rso, #center_col', { timeout: 8000 }).catch(() => {});
-                await jedaManusia(1500, 3000);
-
-                // Cek CAPTCHA
+                // Cek CAPTCHA / unusual traffic
                 const pageText = await page.evaluate(() => document.body?.innerText || '');
-                if (/unusual traffic|captcha|i'm not a robot/i.test(pageText)) {
-                    console.warn('   ⚠️ CAPTCHA! Jeda 20 detik...');
-                    await jedaAman(20000);
+                if (/unusual traffic|captcha|i'm not a robot|lalu lintas yang tidak wajar/i.test(pageText)) {
+                    console.warn('   ⚠️ CAPTCHA! Jeda 30 detik...');
+                    await jedaAman(30000);
                     return [];
                 }
 
@@ -348,51 +213,93 @@ app.get('/api/enrichment/:nim', async (req, res) => {
                     const results = [];
                     const seen = new Set();
 
-                    // Selector AKURAT dari inspect HTML Google nyata:
-                    // - Container: div.tF2Cxc
-                    // - Link: a.zReHs[href] atau a[jsname="UWckNb"]
-                    // - Title: h3.LC20lb
-                    // - Snippet: .VwiC3b
-                    // - Breadcrumb: cite.qLRx3b
+                    // ============================================================
+                    // STRATEGI 1 (UTAMA — Struktur Google 2025):
+                    //   Google sekarang menggunakan `a.zReHs` langsung sebagai
+                    //   elemen link yang wraps h3 judul. Tidak ada lagi div.tF2Cxc.
+                    //   Struktur baru:
+                    //     <a class="zReHs" href="...">
+                    //       <h3>Judul Hasil</h3>
+                    //     </a>
+                    //     <cite class="qLRx3b ...">URL terlihat</cite>
+                    // ============================================================
+                    const primaryLinks = document.querySelectorAll('a.zReHs[href]');
 
-                    const cards = document.querySelectorAll('div.tF2Cxc, div.Ww4FFb.tF2Cxc');
-
-                    for (const card of cards) {
-                        // Ambil link dari anchor dengan class zReHs atau jsname UWckNb
-                        const linkEl = card.querySelector('a.zReHs[href], a[jsname="UWckNb"][href]')
-                                    || card.querySelector('a[href]');
-                        if (!linkEl) continue;
-
-                        const href = linkEl.getAttribute('href') || linkEl.href || '';
-                        if (!href || href.includes('google.com') || href.startsWith('/') || seen.has(href)) continue;
-                        if (!href.startsWith('http')) continue;
+                    for (const a of primaryLinks) {
+                        const href = a.getAttribute('href') || a.href || '';
+                        if (!href || !href.startsWith('http') || href.includes('google.com') || seen.has(href)) continue;
                         seen.add(href);
 
-                        const titleEl   = card.querySelector('h3.LC20lb, h3');
-                        const snippetEl = card.querySelector('.VwiC3b');
-                        const crumbEl   = card.querySelector('cite.qLRx3b, cite');
+                        const h3 = a.querySelector('h3');
+                        const title = h3?.innerText?.trim() || a.innerText?.trim() || '';
 
-                        results.push({
-                            url:        href,
-                            title:      titleEl?.innerText?.trim() || '',
-                            snippet:    snippetEl?.innerText?.trim() || '',
-                            breadcrumb: crumbEl?.innerText?.trim() || '',
-                        });
+                        // Breadcrumb: cite yang paling dekat (sibling atau dekat dalam DOM)
+                        let crumb = '';
+                        let el = a.parentElement;
+                        for (let i = 0; i < 5 && el; i++) {
+                            const c = el.querySelector('cite');
+                            if (c) { crumb = c.innerText?.trim() || ''; break; }
+                            el = el.parentElement;
+                        }
 
+                        // Snippet: cari div teks di dekat link yang bukan heading
+                        let snippet = '';
+                        let elSnip = a.parentElement;
+                        for (let i = 0; i < 5 && elSnip; i++) {
+                            // Cari semua div/span yang punya teks cukup panjang bukan h3
+                            const divs = elSnip.querySelectorAll('div, span');
+                            for (const d of divs) {
+                                if (d.querySelector('h3, a')) continue; // skip jika ada nested heading/link
+                                const t = d.innerText?.trim() || '';
+                                if (t.length > 40 && t.length < 400) { snippet = t; break; }
+                            }
+                            if (snippet) break;
+                            elSnip = elSnip.parentElement;
+                        }
+
+                        results.push({ url: href, title, snippet, breadcrumb: crumb });
                         if (results.length >= max) break;
                     }
 
-                    // Fallback: jika div.tF2Cxc tidak ada, ambil semua a.zReHs
+                    // ============================================================
+                    // STRATEGI 2 (FALLBACK — kalau a.zReHs tidak ada):
+                    //   Gunakan data-hveid sebagai penanda kartu hasil
+                    // ============================================================
                     if (results.length === 0) {
-                        const allLinks = document.querySelectorAll('#rso a.zReHs[href], #rso a[jsname="UWckNb"][href]');
-                        for (const a of allLinks) {
+                        const hveidCards = document.querySelectorAll('div[data-hveid]');
+                        for (const card of hveidCards) {
+                            const a = card.querySelector('a[href]');
+                            if (!a) continue;
                             const href = a.getAttribute('href') || '';
                             if (!href.startsWith('http') || href.includes('google.com') || seen.has(href)) continue;
+                            seen.add(href);
+                            const h3 = card.querySelector('h3');
+                            const cite = card.querySelector('cite');
+                            results.push({
+                                url:        href,
+                                title:      h3?.innerText?.trim() || '',
+                                snippet:    '',
+                                breadcrumb: cite?.innerText?.trim() || '',
+                            });
+                            if (results.length >= max) break;
+                        }
+                    }
+
+                    // ============================================================
+                    // STRATEGI 3 (LAST RESORT — tangkap semua link non-Google):
+                    // ============================================================
+                    if (results.length === 0) {
+                        const allA = document.querySelectorAll('a[href]');
+                        for (const a of allA) {
+                            const href = a.getAttribute('href') || '';
+                            if (!href.startsWith('http') || href.includes('google') || seen.has(href)) continue;
+                            // Skip link navigasi (About, Settings, dsb.) yg sangat pendek
+                            if ((a.innerText?.trim() || '').length < 5) continue;
                             seen.add(href);
                             const h3 = a.querySelector('h3');
                             results.push({
                                 url:        href,
-                                title:      h3?.innerText?.trim() || a.innerText?.trim() || '',
+                                title:      h3?.innerText?.trim() || a.innerText?.slice(0, 100).trim() || '',
                                 snippet:    '',
                                 breadcrumb: '',
                             });

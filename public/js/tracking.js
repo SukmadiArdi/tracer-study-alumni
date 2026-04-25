@@ -118,71 +118,14 @@ const jedaAman = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const waktuAcak = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 // Normalisasi nama untuk perbandingan (hapus karakter khusus, gelar, dll)
+// Normalisasi nama (Sudah tidak terlalu diperlukan untuk PDDikti baru, tapi dipertahankan untuk referensi)
 function normalisasiNamaTracking(nama) {
-    return (nama || '')
-        .toLowerCase()
-        .replace(/\b(drs?|dr|prof|ir|hj?|m\.?si|s\.?kom|s\.?pd|s\.?h|m\.?m|m\.?pd|apt|st|se)\b\.?/gi, '')
-        .replace(/[''`'"]/g, ' ')
-        .replace(/[-_]/g, ' ')
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-// Fungsi hitung skor PDDikti berdasarkan data yang berhasil diambil dari halaman detail
-function hitungSkorPDDikti(internal, external) {
-    let skor = 0;
-
-    // 1. Cek Nama (40 Poin) — Gunakan normalisasi + pencocokan kata per kata
-    if (external.nama && internal.name) {
-        const namaInternal = normalisasiNamaTracking(internal.name);
-        const namaExternal = normalisasiNamaTracking(external.nama);
-
-        const kataInternal = namaInternal.split(' ').filter(w => w.length > 2);
-        const kataExternal = namaExternal.split(' ').filter(w => w.length > 2);
-
-        if (kataInternal.length > 0) {
-            // Hitung rasio kata yang cocok (bidirectional: dari internal ke external DAN sebaliknya)
-            const cocokForward  = kataInternal.filter(w => namaExternal.includes(w)).length;
-            const cocokBackward = kataExternal.filter(w => namaInternal.includes(w)).length;
-            const totalKata     = Math.max(kataInternal.length, kataExternal.length, 1);
-            const rasio         = Math.max(cocokForward, cocokBackward) / totalKata;
-            const nilaiNama     = Math.round(rasio * 40);
-            skor += nilaiNama;
-        }
-    }
-
-    // 2. Cek Prodi (20 Poin) — Normalisasi + .includes()
-    if (external.programStudi && internal.program) {
-        const prodiExt = normalisasiNamaTracking(external.programStudi);
-        const prodiInt = normalisasiNamaTracking(internal.program);
-        // Cocok jika salah satu mengandung kata kunci dari yang lain
-        const kataProdi = prodiInt.split(' ').filter(w => w.length > 3);
-        if (kataProdi.some(w => prodiExt.includes(w)) || prodiExt.includes(prodiInt)) {
-            skor += 20;
-        }
-    }
-
-    // 3. Cek Tahun Masuk (20 Poin) — Cari angka tahun di string tanggal masuk
-    if (external.tanggalMasuk && internal.year) {
-        if (external.tanggalMasuk.toString().includes(internal.year.toString())) {
-            skor += 20;
-        }
-    }
-
-    // 4. Cek Status Kelulusan (20 Poin) — Cari kata "lulus" di status
-    if (external.statusTerakhir) {
-        if (external.statusTerakhir.toLowerCase().includes('lulus')) {
-            skor += 20;
-        }
-    }
-
-    return skor;
+    return (nama || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
 }
 
 // Fungsi utama batch crawling PDDikti (SUPER AMAN)
 export async function jalankanSinkronisasiPDDiktiMassal(daftarAlumni, callbackProgress, callbackUpdateDB) {
-    const targetAlumni = daftarAlumni.filter(a => a.status !== "Identified");
+    const targetAlumni = daftarAlumni;
     let terproses = 0;
 
     for (let i = 0; i < targetAlumni.length; i++) {
@@ -191,40 +134,35 @@ export async function jalankanSinkronisasiPDDiktiMassal(daftarAlumni, callbackPr
         callbackProgress(alumni.name, terproses, targetAlumni.length, "Mencari data ke server...");
 
         try {
-            const namaEncoded     = encodeURIComponent(alumni.name);
-            const programEncoded  = encodeURIComponent(alumni.program || '');
-            const ptEncoded       = encodeURIComponent('Universitas Muhammadiyah Malang');
-            const response = await fetch(`/api/pddikti/${alumni.nim}?nama=${namaEncoded}&program=${programEncoded}&perguruan=${ptEncoded}`);
+            const response = await fetch(`/api/pddikti/${alumni.nim}`);
             const result = await response.json();
 
             if (result.status === "sukses" && result.data) {
-                const skor = hitungSkorPDDikti(alumni, result.data);
-                const statusBaru = skor >= 70 ? "Identified" : "Pending";
+                // Sesuai request: Jika NIM ditemukan di link, langsung teridentifikasi
+                const skor = 100;
+                const statusBaru = "Identified";
 
                 await callbackUpdateDB(alumni.id, statusBaru, skor);
                 
                 terproses++;
-                callbackProgress(alumni.name, terproses, targetAlumni.length, `Selesai. Skor: ${skor}`);
+                callbackProgress(alumni.name, terproses, targetAlumni.length, `Selesai. Ditemukan!`);
+            } else {
+                await callbackUpdateDB(alumni.id, "Not Found", 0);
+                terproses++;
+                callbackProgress(alumni.name, terproses, targetAlumni.length, `Selesai. Tidak Ditemukan.`);
             }
         } catch (error) {
             console.error(`Gagal memproses NIM ${alumni.nim}:`, error);
             callbackProgress(alumni.name, terproses, targetAlumni.length, "Gagal/Timeout dari server.");
         }
 
-        // --- LAPISAN KEAMANAN (SAFETY LAYERS) ---
-        // Catatan: Scraping 1 NIM sudah memakan ~30 detik di sisi server
-        // (12s jeda langkah 1 + 12s jeda langkah 2 + overhead Puppeteer)
-        // Jadi jeda di sini hanya sebagai "nafas" antar request
-        
+        // --- LAPISAN KEAMANAN AGRESIF (Tanpa Puppeteer jadi lebih ringan) ---
         if (i < targetAlumni.length - 1) {
-            // 1. SISTEM BATCH: Setiap 15 data, istirahat 60 detik
-            if ((i + 1) % 15 === 0) {
-                callbackProgress("Sistem", terproses, targetAlumni.length, "Istirahat 60 detik agar server tidak terdeteksi bot...");
-                await jedaAman(60000); // Istirahat 1 menit
-            } 
-            // 2. JEDA NORMAL: 3-7 detik antar alumni (scraping sendiri sudah ~30 detik)
-            else {
-                let delayAcak = waktuAcak(3000, 7000); // 3-7 detik
+            if ((i + 1) % 50 === 0) {
+                callbackProgress("Sistem", terproses, targetAlumni.length, "Istirahat singkat 5 detik (Mode Agresif)...");
+                await jedaAman(5000); 
+            } else {
+                let delayAcak = waktuAcak(500, 1500); // Jeda singkat 0.5 - 1.5 detik
                 callbackProgress("Sistem", terproses, targetAlumni.length, `Jeda ${(delayAcak/1000).toFixed(1)} detik...`);
                 await jedaAman(delayAcak); 
             }
@@ -237,20 +175,12 @@ export async function jalankanSinkronisasiPDDiktiMassal(daftarAlumni, callbackPr
 // ===== 8. [BARU] SINKRONISASI PDDIKTI PERORANG =====
 export async function verifikasiSatuPDDikti(alumni) {
     try {
-        // Tembak API PDDikti lokal untuk 1 NIM
-        const namaEncoded     = encodeURIComponent(alumni.name);
-        const programEncoded  = encodeURIComponent(alumni.program || '');
-        const ptEncoded       = encodeURIComponent('Universitas Muhammadiyah Malang');
-        const response = await fetch(`/api/pddikti/${alumni.nim}?nama=${namaEncoded}&program=${programEncoded}&perguruan=${ptEncoded}`);
+        const response = await fetch(`/api/pddikti/${alumni.nim}`);
         const result = await response.json();
 
-        // Jika berhasil mendapat data dari server
+        // Jika berhasil mendapat data dari server (NIM ditemukan)
         if (result.status === "sukses" && result.data) {
-            // Gunakan fungsi hitungSkorPDDikti yang sudah ada di file ini
-            const skor = hitungSkorPDDikti(alumni, result.data);
-            const statusBaru = skor >= 70 ? "Identified" : "Pending";
-            
-            return { status: statusBaru, confidence: skor, data: result.data };
+            return { status: "Identified", confidence: 100, data: result.data };
         } else {
             return { status: "Not Found", confidence: 0, data: null };
         }

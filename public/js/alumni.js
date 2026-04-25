@@ -13,8 +13,7 @@ export async function getAlumni({ page = 1, pageSize = 50, search = "", program 
     if (year !== "All") query = query.eq('year', parseInt(year));
     
     if (status === "Identified") {
-      // Teridentifikasi khusus mengukur kesuksesan PDDikti (confidence >= 70)
-      query = query.gte('confidence', 70);
+      query = query.in('status', ['Identified', 'Enriched']);
     } else if (status !== "All") {
       query = query.eq('status', status);
     }
@@ -45,16 +44,14 @@ export async function getAlumniStats() {
     // Jalankan semua query count secara paralel
     const [
       { count: total },
-      { count: identified }, // Menghitung dari PDDikti confidence (tidak peduli sudah di-enrich atau belum)
+      { count: identified },
       { count: pending },
       { count: notFound },
-      { count: enriched },
     ] = await Promise.all([
       supabase.from(ALUMNI_TABLE).select('*', { count: 'exact', head: true }),
-      supabase.from(ALUMNI_TABLE).select('*', { count: 'exact', head: true }).gte('confidence', 70),
+      supabase.from(ALUMNI_TABLE).select('*', { count: 'exact', head: true }).in('status', ['Identified', 'Enriched']),
       supabase.from(ALUMNI_TABLE).select('*', { count: 'exact', head: true }).eq('status', 'Pending'),
       supabase.from(ALUMNI_TABLE).select('*', { count: 'exact', head: true }).eq('status', 'Not Found'),
-      supabase.from(ALUMNI_TABLE).select('*', { count: 'exact', head: true }).eq('status', 'Enriched'),
     ]);
 
     return {
@@ -62,11 +59,10 @@ export async function getAlumniStats() {
       identified: identified || 0,
       pending: pending || 0,
       notFound: notFound || 0,
-      enriched: enriched || 0,
     };
   } catch (error) {
     console.error("Error mengambil stats alumni: ", error);
-    return { total: 0, identified: 0, pending: 0, notFound: 0, enriched: 0 };
+    return { total: 0, identified: 0, pending: 0, notFound: 0 };
   }
 }
 
@@ -168,18 +164,14 @@ export async function saveEnrichmentToDatabase(alumniId, enrichmentData) {
     if (enrichmentScore > 100) enrichmentScore = 100;
 
     // --- Logika Status ---
-    // Jika data profil sudah cukup terisi (score >= 30), langsung Enriched (Terlacak Valid)
-    // Jika PDDikti sudah verify (confidence >= 70), Identified
+    // Jika data profil sudah cukup terisi (score >= 30) atau PDDikti >= 70, Identified
     // Sisanya Pending (kecuali sudah Not Found — tidak diubah)
     const pddiktiScore = currentData.confidence || 0;
     let statusBaru = currentData.status || "Pending";
 
-    if (enrichmentScore >= 30) {
-      // Data sudah terisi cukup → Terlacak (Valid)
-      statusBaru = "Enriched";
-    } else if (pddiktiScore >= 70) {
+    if (enrichmentScore >= 30 || pddiktiScore >= 70) {
       statusBaru = "Identified";
-    } else if (statusBaru !== "Not Found" && statusBaru !== "Enriched") {
+    } else if (statusBaru !== "Not Found" && statusBaru !== "Identified") {
       statusBaru = "Pending";
     }
 

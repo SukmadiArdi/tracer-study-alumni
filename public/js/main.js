@@ -154,7 +154,7 @@ function renderAlumniTable() {
     const hasEnrichment = enr.tempatKerja || enr.linkedin || enr.email;
     const enrichBadge = hasEnrichment
       ? `<span class="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full ml-1">
-           <i data-lucide="check-circle" class="w-3 h-3"></i> Enriched
+           <i data-lucide="check-circle" class="w-3 h-3"></i> Profil Terisi
          </span>` : "";
     const statusKerjaBadge = enr.statusKerja
       ? `<span class="text-xs text-gray-400 block mt-0.5">${enr.statusKerja}</span>` : "";
@@ -176,7 +176,7 @@ function renderAlumniTable() {
         </td>
         <td class="px-4 py-3">
           <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${colorClass}">
-            ${{"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan", "Enriched": "Terlacak (Valid)"}[a.status] || a.status}
+            ${{"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan"}[a.status] || a.status}
           </span>
           <div class="text-xs text-blue-600 mt-1 font-medium">PDDikti: ${a.confidence || 0}%</div>
           ${hasEnrichment ? `<div class="text-xs text-purple-600 mt-0.5">Profil: ${a.enrichmentScore || 0}% terisi</div>` : ''}
@@ -364,7 +364,7 @@ async function handleTrackAlumni(id) {
     // Refresh dashboard stats dari DB
     await loadDashboard();
 
-    const labelStatus = {"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan", "Enriched": "Terlacak (Valid)"}[finalStatus] || finalStatus;
+    const labelStatus = {"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan"}[finalStatus] || finalStatus;
     addActivity(`Pencarian PDDikti ${alumni.name}: ${labelStatus} (${result.confidence}%)`, "radar", "text-blue-600", "bg-blue-50");
     showToast(`✅ Selesai! ${alumni.name} berstatus: ${labelStatus}`, finalStatus === "Identified" ? "success" : "info");
   } catch (e) {
@@ -395,7 +395,7 @@ async function confirmVerify(id, action) {
     renderVerification();
     await loadDashboard();
 
-    const labelStatus = {"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan", "Enriched": "Terlacak (Valid)"}[status] || status;
+    const labelStatus = {"Identified": "Teridentifikasi", "Pending": "Perlu Verifikasi", "Not Found": "Antrean data belum ditemukan"}[status] || status;
     const name = verifData.find(a => a.id === id)?.name || currentAlumniData.find(a => a.id === id)?.name || "Alumni";
     addActivity(`${name} diverifikasi sebagai ${labelStatus}`, "check", "text-emerald-600", "bg-emerald-50");
     showToast(`Status diperbarui: ${labelStatus}`, "success");
@@ -730,8 +730,52 @@ document.getElementById("btn-start-pddikti")?.addEventListener("click", async ()
   };
 
   try {
-    // Gunakan hanya data halaman saat ini untuk sinkronisasi
-    const totalSelesai = await jalankanSinkronisasiPDDiktiMassal(currentAlumniData, updateUI, updateStatus);
+    const mode = document.querySelector('input[name="pddikti-sync-mode"]:checked')?.value || 'page';
+    let targetData = [];
+
+    if (mode === 'page') {
+      targetData = currentAlumniData;
+    } else {
+      // Fetch dari database berdasarkan mode dengan Pagination (untuk bypass limit 1000)
+      let allData = [];
+      let from = 0;
+      const limit = 1000;
+      let hasMore = true;
+
+      statusText.textContent = "Mengumpulkan seluruh data dari database...";
+
+      while (hasMore) {
+        let query = supabase.from("alumni").select("*").order("id", { ascending: true }).range(from, from + limit - 1);
+        
+        if (mode === 'pending') {
+          query = query.lt("confidence", 70);
+        }
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allData = allData.concat(data);
+          from += limit;
+          
+          countText.textContent = `Menyiapkan ${allData.length} data...`;
+          
+          if (data.length < limit) {
+             hasMore = false; // Data sudah habis
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+      targetData = allData;
+    }
+
+    if (targetData.length === 0) {
+      showToast("Tidak ada data untuk disinkronisasi", "info");
+      return;
+    }
+
+    const totalSelesai = await jalankanSinkronisasiPDDiktiMassal(targetData, updateUI, updateStatus);
     showToast(`✅ Sinkronisasi Selesai! ${totalSelesai} data diproses.`, "success");
     addActivity(`Sinkronisasi massal PDDikti selesai: ${totalSelesai} data`, "server", "text-blue-600", "bg-blue-50");
     await Promise.all([loadPage(currentPage), loadDashboard()]);
